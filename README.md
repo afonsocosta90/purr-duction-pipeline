@@ -1,88 +1,48 @@
 # Purr-duction Pipeline 🐱
-
-**"Am I a Cat?"** — Production-grade MLOps pipeline for binary image classification (Cat vs Not Cat).
-
+**"Am I a Cat?"** — Production-grade MLOps pipeline for binary image classification (Cat vs Not Cat).  
 A complete end-to-end demonstration of modern MLOps practices built to showcase skills that recruiters look for in 2026.
 
----
+## 🎯 Current Project Status (Phase 2/8 - Data Pipeline COMPLETE)
 
-## 🎯 Project Vision
+**Achieved:**
+- Poetry + DVC setup
+- Fully versioned data pipeline (`ingest` → `validate`)
+- **7390 high-quality images** processed and validated:
+  - 2400 `cat`
+  - 4990 `not_cat`
+- Automated quality gates (class balance, file integrity, no duplicates, no corruption)
+- Reproducible pipeline with `dvc repro`
+- Git + DVC workflow
+- Documentation
 
-Transform a simple image classifier into a **fully automated, reproducible, monitored, and deployable** ML system including:
-- Data versioning & validation
-- Pipeline orchestration
-- Experiment tracking
-- Automated model promotion
-- REST API serving
-- CI/CD + Docker
-- Production drift detection
+**Next Phase (3/8):** Feature engineering + Hydra config + stratified train/val/test split
 
----
 
-## 🛠️ Tech Stack
+## 🛠️ Tech Stack (Current)
+| Layer              | Technology                          |
+|--------------------|-------------------------------------|
+| **Environment**    | Poetry + Python 3.12                |
+| **Data Versioning**| DVC + Git                           |
+| **Validation**     | Lightweight production quality gates|
+| **Config**         | Hydra (Phase 3)                     |
+| **Training**       | PyTorch (Phase 4+)                  |
 
-| Layer                    | Technology                          |
-|-------------------------|-------------------------------------|
-| **Environment**         | Poetry + Python 3.11                |
-| **Data Versioning**     | DVC + Git                           |
-| **Orchestration**       | Prefect                             |
-| **Experiment Tracking** | MLflow                              |
-| **Config Management**   | Hydra + OmegaConf                   |
-| **Model Training**      | PyTorch (MPS/CPU)                   |
-| **Model Serving**       | FastAPI + ONNX Runtime              |
-| **Validation**          | Great Expectations + Deepchecks     |
-| **CI/CD**               | GitHub Actions + Docker             |
-| **Monitoring**          | Evidently AI                        |
-
----
 
 ## 🚀 Quick Start
 
 ```bash
-# 1. Clone the repo
+# 1. Clone
 git clone https://github.com/afonsocosta90/purr-duction-pipeline.git
 cd purr-duction-pipeline
 
-# 2. Install environment
+# 2. Install
 make install
 
-# 3. Enter shell
+# 3. Enter environment
 make shell
 
-# 4. (Later) Pull data
+# 4. Pull latest data
 poetry run dvc pull
 
-````
----
-
-## 📁 Project Structure
-
-```bash
-purr-duction-pipeline/
-├── .github/
-│   └── workflows/                  # GitHub Actions CI/CD
-├── configs/                        # Hydra configuration files
-├── data/
-│   ├── raw/                        # Original downloaded data
-│   ├── processed/                  # Cleaned & transformed data
-│   └── external/                   # External sources
-├── docker/                         # Dockerfile and docker-compose
-├── models/                         # Trained models & MLflow
-├── notebooks/                      # Exploratory notebooks
-├── pipelines/                      # Prefect workflow definitions
-├── src/
-│   └── catops/                     # Main production Python package
-│       ├── __init__.py
-│       ├── data/                   # Data loading & ingestion
-│       ├── features/               # Feature engineering
-│       ├── models/                 # Model architecture & training
-│       ├── evaluation/             # Evaluation & metrics
-│       ├── serving/                # FastAPI serving logic
-│       └── utils/                  # Shared utilities
-├── tests/                          # Unit & integration tests
-├── dvc.yaml                        # DVC pipelines
-├── params.yaml                     # Hydra main config
-├── pyproject.toml                  # Poetry configuration
-├── Makefile                        # Common development commands
-├── .pre-commit-config.yaml
-└── README.md
+# 5. Run full data pipeline
+poetry run dvc repro --force

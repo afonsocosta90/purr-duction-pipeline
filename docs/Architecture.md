@@ -1,0 +1,244 @@
+# Architecture Documentation – "Am I a Cat?"
+
+**Binary Image Classification MLOps System**  
+*Cat vs. Not-Cat* – Production-Ready, Fully Automated, Reproducible Pipeline
+
+**Version**: 1.0  
+**Last Updated**: 2026-05-07  
+**Status**: Phase 2 of 8 complete — data ingestion and validation in production
+
+## 1. Project Overview
+
+The “Am I a Cat?” system is a **binary image classifier** that determines whether an input image contains a cat or not.  
+What starts as a simple notebook model will be transformed into a **complete MLOps platform** with:
+- Automated, versioned data pipelines
+- Reproducible experiments with full lineage
+- Continuous training & model promotion
+- Production-grade serving with monitoring & drift detection
+- Zero-downtime CI/CD deployments
+
+**Key Objectives**
+- 100% reproducibility (code + data + config + environment)
+- Automated quality gates at every stage
+- Model governance & promotion rules
+- Scalable serving (batch + real-time)
+- Observability & alerting for data/model drift
+
+## 2. Phase Roadmap
+
+| Phase | Description                               | Status    |
+|-------|-------------------------------------------|-----------|
+| 1     | Project scaffold (Poetry + DVC + Git)     | ✅ Done   |
+| 2     | Data ingestion + validation               | ✅ Done   |
+| 3     | Feature engineering + train/val/test split | Planned  |
+| 4     | Model training (PyTorch + Hydra)          | Planned   |
+| 5     | Experiment tracking (MLflow)              | Planned   |
+| 6     | CI/CD pipeline (GitHub Actions)           | Planned   |
+| 7     | Model serving (BentoML + FastAPI)         | Planned   |
+| 8     | Monitoring + drift detection              | Planned   |
+
+---
+
+## 3. High-Level Architecture
+
+```mermaid
+flowchart TD
+    subgraph Data["Data Layer ✅ Phases 1-2"]
+        RAW["data/raw/<br/>images.tar.gz"]
+        INGEST["ingest.py<br/>extract + classify"]
+        PROC["data/processed/<br/>cat/ · not_cat/ · metadata.csv"]
+        VAL["validate.py<br/>quality gates"]
+    end
+
+    subgraph Features["Feature Layer — Phase 3"]
+        SPLIT["stratified split<br/>train / val / test"]
+        FEAT["resize · normalize · augment"]
+    end
+
+    subgraph Training["Training — Phases 4-5"]
+        HYDRA["Hydra config"]
+        TRAIN["PyTorch trainer<br/>ResNet / EfficientNet"]
+        MLFLOW["MLflow<br/>tracking + registry"]
+    end
+
+    subgraph CICD["CI/CD — Phase 6"]
+        GH["GitHub Actions<br/>lint → test → repro → promote"]
+    end
+
+    subgraph Serving["Serving — Phase 7"]
+        BENTO["BentoML<br/>ONNX / TorchScript"]
+        API["FastAPI<br/>/predict · /batch_predict<br/>/health · /metrics"]
+    end
+
+    subgraph Monitor["Monitoring — Phase 8"]
+        EVIDENTLY["Evidently AI<br/>data drift"]
+        PROM["Prometheus + Grafana<br/>model drift + alerting"]
+    end
+
+    RAW --> INGEST --> PROC --> VAL
+    VAL --> SPLIT --> FEAT --> TRAIN
+    HYDRA --> TRAIN --> MLFLOW
+    MLFLOW --> GH --> BENTO --> API
+    API --> EVIDENTLY --> PROM
+    PROM -->|"drift alert → retrain"| RAW
+```
+
+---
+
+## 4. Sequence Diagram — Data Pipeline (Phases 1-2)
+
+```mermaid
+sequenceDiagram
+    actor Dev as Developer
+    participant FS as Filesystem
+    participant DVC
+    participant Ingest as ingest.py
+    participant Validate as validate.py
+    participant Remote as DVC Remote
+
+    Dev->>FS: place images.tar.gz in data/raw/
+    Dev->>DVC: dvc repro
+
+    DVC->>Ingest: run stage: ingest
+    Ingest->>FS: extract images.tar.gz → data/raw/images/
+    Ingest->>FS: classify by filename (uppercase first → cat)
+    Ingest->>FS: copy into data/processed/cat/ and not_cat/
+    Ingest-->>DVC: stage complete (7 390 images)
+
+    DVC->>Validate: run stage: validate
+    Validate->>FS: scan data/processed/ → build metadata.csv
+    Validate->>Validate: gate 1 — both classes present?
+    Validate->>Validate: gate 2 — each class ≥ 30% of total?
+    Validate->>Validate: gate 3 — no file smaller than 1 KB?
+    Validate->>Validate: gate 4 — no duplicate image paths?
+    Validate->>FS: write data/processed/metadata.csv
+    Validate-->>DVC: PASSED ✅  (raises RuntimeError on failure ❌)
+
+    DVC->>FS: write dvc.lock (content hashes)
+    Dev->>DVC: dvc push
+    DVC->>Remote: upload data/processed/ artifacts
+    Dev->>FS: git commit dvc.lock && git push
+```
+
+---
+
+## 5. Detailed Component Architecture
+
+### 5.1 Data Layer (✅ implemented)
+
+**ingest.py** (`src/catops/data/ingest.py`)
+
+| Responsibility | Detail |
+|----------------|--------|
+| Source dataset | Oxford-IIIT Pet (37 breeds, JPEG) |
+| Classification rule | Uppercase first letter → `cat`; lowercase → `not_cat` |
+| Input | `data/raw/images.tar.gz` |
+| Output | `data/processed/cat/` and `data/processed/not_cat/` |
+| Idempotent | Skips extraction if `data/raw/images/` already exists |
+
+**validate.py** (`src/catops/data/validate.py`)
+
+| Quality Gate | Rule |
+|--------------|------|
+| Class existence | Both `cat` and `not_cat` must be present with > 0 images |
+| Class balance | Each class must be ≥ 30% of total |
+| File integrity | No files smaller than 1 KB |
+| Deduplication | No duplicate `image_path` values |
+| Output | `data/processed/metadata.csv` (columns: image_path, label, file_size) |
+
+**DVC pipeline** (`dvc.yaml`)
+```
+ingest  ──►  validate
+  │               │
+  └─► data/processed/   (shared, DVC-tracked)
+```
+Both stages are cached — `dvc repro` is a no-op if inputs are unchanged.
+
+### 5.2 Feature Layer (Phase 3 — planned)
+- Hydra config to control image size, normalization, augmentation
+- Stratified 70/15/15 train/val/test split written to DVC-tracked CSVs
+- No data leakage: split is done once and locked in `dvc.lock`
+
+### 5.3 Training Layer (Phases 4-5 — planned)
+- **Framework**: PyTorch 2.x + TorchVision / Timm (transfer learning)
+- **Config**: Hydra + OmegaConf multi-stage sweeps
+- **Tracking**: MLflow runs, metrics, model weights, DVC pointers
+- **Promotion rules**: accuracy ≥ 0.94, F1 ≥ 0.93, drift score < threshold → Staging → Production
+
+### 5.4 Serving Layer (Phase 7 — planned)
+- **Packaging**: BentoML with ONNX export + TorchScript fallback
+- **API**: FastAPI (async) + Pydantic v2 validation
+- **Endpoints**: `/predict`, `/batch_predict`, `/health`, `/metrics`, `/drift-report`
+
+### 5.5 CI/CD (Phase 6 — planned)
+GitHub Actions workflow stages:
+1. Lint (Ruff + Black + Mypy) + unit tests
+2. `dvc repro` + data validation
+3. Model training (GPU runners)
+4. MLflow model promotion gate
+5. Docker build + push
+6. Deploy to staging → smoke tests → production
+
+### 5.6 Monitoring (Phase 8 — planned)
+- **Data drift**: Evidently AI (feature distribution shift)
+- **Model drift**: Prometheus metrics + Grafana dashboards
+- **Logging**: structured JSON + OpenTelemetry traces
+- **Alerts**: Slack/email when drift threshold exceeded → triggers retraining
+
+## 6. Technology Stack
+
+| Layer               | Tool                          | Status   | Reason |
+|---------------------|-------------------------------|----------|--------|
+| Dependency mgmt     | Poetry                        | ✅ Active | Reproducible lockfile |
+| Data versioning     | DVC + local / S3 / GCS remote | ✅ Active | Git-like semantics for large files |
+| Code quality        | Ruff + Black + Mypy           | ✅ Active | Lint, format, type-check |
+| Pre-commit hooks    | pre-commit + DVC hooks        | ✅ Active | Enforce DVC sync on commit/push |
+| Data processing     | Pillow + pandas + tqdm        | ✅ Active | Image handling and metadata |
+| Config management   | Hydra + OmegaConf             | Planned  | Multi-run, sweepable configs |
+| Training            | PyTorch 2 + TorchVision       | Planned  | Flexible, battle-tested |
+| Experiment tracking | MLflow                        | Planned  | Open-source model registry |
+| Serving             | BentoML + FastAPI             | Planned  | ONNX/TorchScript, easy scaling |
+| Containerisation    | Docker (multi-stage)          | Planned  | Security & minimal image size |
+| CI/CD               | GitHub Actions                | Planned  | Native GH integration |
+| Monitoring          | Evidently AI + Prometheus     | Planned  | Drift detection + alerting |
+| Cloud (optional)    | AWS / GCP (S3 + GPU runners)  | Planned  | Scalability |
+
+---
+
+## 7. Repository Layout (current)
+
+```
+purr-duction-pipeline/
+├── src/
+│   └── catops/
+│       ├── __init__.py
+│       └── data/
+│           ├── ingest.py       ← Phase 2: extract + classify
+│           └── validate.py     ← Phase 2: quality gates
+├── data/
+│   ├── raw/                    ← source archive (DVC-ignored from Git)
+│   └── processed/              ← DVC-tracked pipeline output
+│       ├── cat/                   (2 400 images)
+│       ├── not_cat/               (4 990 images)
+│       └── metadata.csv           (image_path, label, file_size)
+├── docs/
+│   ├── Architecture.md         ← this file
+│   └── HowToAddData.md
+├── dvc.yaml                    ← pipeline stage definitions
+├── dvc.lock                    ← artifact hashes (committed to Git)
+├── params.yaml                 ← pipeline parameters
+├── pyproject.toml              ← Poetry dependencies
+├── .pre-commit-config.yaml     ← DVC git hooks
+└── README.md
+```
+
+**Planned additions (Phase 3+)**
+```
+├── .github/workflows/          ← CI/CD pipelines
+├── configs/                    ← Hydra configs (data, model, training)
+├── models/                     ← MLflow artifacts + ONNX exports
+├── notebooks/                  ← Exploration only (never production)
+├── tests/                      ← Unit + integration tests
+├── Dockerfile
+└── docker-compose.yml          ← Local dev + MLflow server
+```
