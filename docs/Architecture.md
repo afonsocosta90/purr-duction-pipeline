@@ -44,37 +44,31 @@ What starts as a simple notebook model will be transformed into a **complete MLO
 ```mermaid
 flowchart TD
     subgraph Data["Data Layer ✅ Phases 1-2"]
-        RAW["data/raw/<br/>images.tar.gz"]
+        RAW["data/raw/<br/>images.tar.gz (or cat/ + not_cat/)"]
         INGEST["ingest.py<br/>extract + classify"]
         PROC["data/processed/<br/>cat/ · not_cat/ · metadata.csv"]
         VAL["validate.py<br/>quality gates"]
     end
-
     subgraph Features["Feature Layer — Phase 3"]
         SPLIT["stratified split<br/>train / val / test"]
         FEAT["resize · normalize · augment"]
     end
-
     subgraph Training["Training — Phases 4-5"]
         HYDRA["Hydra config"]
         TRAIN["PyTorch trainer<br/>ResNet / EfficientNet"]
         MLFLOW["MLflow<br/>tracking + registry"]
     end
-
     subgraph CICD["CI/CD — Phase 6"]
         GH["GitHub Actions<br/>lint → test → repro → promote"]
     end
-
     subgraph Serving["Serving — Phase 7"]
         BENTO["BentoML<br/>ONNX / TorchScript"]
         API["FastAPI<br/>/predict · /batch_predict<br/>/health · /metrics"]
     end
-
     subgraph Monitor["Monitoring — Phase 8"]
         EVIDENTLY["Evidently AI<br/>data drift"]
         PROM["Prometheus + Grafana<br/>model drift + alerting"]
     end
-
     RAW --> INGEST --> PROC --> VAL
     VAL --> SPLIT --> FEAT --> TRAIN
     HYDRA --> TRAIN --> MLFLOW
@@ -95,16 +89,13 @@ sequenceDiagram
     participant Ingest as ingest.py
     participant Validate as validate.py
     participant Remote as DVC Remote
-
     Dev->>FS: place images.tar.gz in data/raw/
     Dev->>DVC: dvc repro
-
     DVC->>Ingest: run stage: ingest
     Ingest->>FS: extract images.tar.gz → data/raw/images/
     Ingest->>FS: classify by filename (uppercase first → cat)
     Ingest->>FS: copy into data/processed/cat/ and not_cat/
     Ingest-->>DVC: stage complete (7 390 images)
-
     DVC->>Validate: run stage: validate
     Validate->>FS: scan data/processed/ → build metadata.csv
     Validate->>Validate: gate 1 — both classes present?
@@ -112,8 +103,7 @@ sequenceDiagram
     Validate->>Validate: gate 3 — no file smaller than 1 KB?
     Validate->>Validate: gate 4 — no duplicate image paths?
     Validate->>FS: write data/processed/metadata.csv
-    Validate-->>DVC: PASSED ✅  (raises RuntimeError on failure ❌)
-
+    Validate-->>DVC: PASSED ✅ (raises RuntimeError on failure ❌)
     DVC->>FS: write dvc.lock (content hashes)
     Dev->>DVC: dvc push
     DVC->>Remote: upload data/processed/ artifacts
@@ -212,27 +202,38 @@ purr-duction-pipeline/
 ├── src/
 │   └── catops/
 │       ├── __init__.py
-│       └── data/
-│           ├── ingest.py       ← Phase 2: extract + classify
-│           └── validate.py     ← Phase 2: quality gates
+│       ├── data/
+│       │   ├── ingest.py          # Phase 2: extract + classify
+│       │   └── validate.py       # Phase 2: quality gates + metadata.csv
+│       ├── features/             # Phase 3: split + preprocessing
+│       ├── evaluation/           # Phase 4-5: metrics, drift
+│       ├── serving/              # Phase 7: BentoML + FastAPI
+│       ├── utils/                # shared logging, config, etc.
+│       └── __init__.py
+├── configs/                      # Hydra configs (data, model, training)
+├── pipelines/                    # DVC stages + future Prefect/Dagster flows
 ├── data/
-│   ├── raw/                    ← source archive (DVC-ignored from Git)
-│   └── processed/              ← DVC-tracked pipeline output
-│       ├── cat/                   (2 400 images)
-│       ├── not_cat/               (4 990 images)
-│       └── metadata.csv           (image_path, label, file_size)
+│   ├── raw/                      # DVC-tracked archive
+│   └── processed/                # cat/, not_cat/, metadata.csv
+├── docker/                       # Dockerfile, multi-stage builds
+├── .github/workflows/            # CI/CD (lint → dvc repro → train → deploy)
+├── tests/                        # Unit + integration + data validation tests
+├── notebooks/                    # Exploration only (never committed with outputs)
 ├── docs/
-│   ├── Architecture.md         ← this file
-│   └── HowToAddData.md
-├── dvc.yaml                    ← pipeline stage definitions
-├── dvc.lock                    ← artifact hashes (committed to Git)
-├── params.yaml                 ← pipeline parameters
-├── pyproject.toml              ← Poetry dependencies
-├── .pre-commit-config.yaml     ← DVC git hooks
+│   ├── Architecture.md
+│   ├── ProjectScope.md
+│   └── mermaid-diagram.svg
+├── dvc.yaml
+├── dvc.lock
+├── params.yaml
+├── pyproject.toml
+├── Makefile
+├── .pre-commit-config.yaml
 └── README.md
 ```
 
 **Planned additions (Phase 3+)**
+
 ```
 ├── .github/workflows/          ← CI/CD pipelines
 ├── configs/                    ← Hydra configs (data, model, training)

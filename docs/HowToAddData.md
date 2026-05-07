@@ -39,7 +39,7 @@ poetry run dvc push
 
 ```bash
 poetry run dvc status
-cat data/processed/metadata.csv | wc -l   # should show increased count
+wc -l data/processed/metadata.csv   # should show increased count
 ````
 
 # Important Production Rules
