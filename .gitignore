@@ -1,0 +1,72 @@
+# === Python & Packaging ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# === Virtual Environments & Poetry ===
+.venv/
+venv/
+ENV/
+env/
+
+# === DVC (Critical - never commit cache or temp) ===
+.dvc/cache/
+.dvc/tmp/
+dvc-remote-storage/
+
+# === Data (DVC-versioned only - keep *.dvc files) ===
+data/raw/
+data/processed/
+data/interim/
+data/external/
+!data/*.dvc
+!data/external/.gitignore
+
+# === Model artifacts & outputs ===
+models/
+outputs/
+checkpoints/
+
+# === Experiment tracking & logs ===
+mlruns/
+wandb/
+lightning_logs/
+*.log
+logs/
+
+# === IDE / OS / Editor junk ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# === Jupyter / Notebooks ===
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# === Claude / Anthropic AI (NEW SECTION) ===
+.claude/
+CLAUDE.md
+claude.md
+anthropic/
+*.claude
+
+# === Temporary / Generated files ===
+*.tmp
+*.temp
+*.bak
+project-tree.txt
+
+# === Environment secrets ===
+.env
+.env.*
