@@ -5,23 +5,38 @@ stages:
     deps:
     - path: src/catops/data/ingest.py
       hash: md5
-      md5: 3a1e8951076871d6eb250c28365dd76e
-      size: 2116
+      md5: 81f3e8c8389e9d9cf763c215dec1068b
+      size: 2086
     outs:
-    - path: data/processed
+    - path: data/processed/cat
       hash: md5
-      md5: 69fcc290621ad6f3e57cf2146c4b4917.dir
-      size: 792583796
-      nfiles: 7390
+      md5: 28ead14a2eb4039d266595c512b6fd14.dir
+      size: 217742936
+      nfiles: 2400
+    - path: data/processed/not_cat
+      hash: md5
+      md5: 6320da84e59a8019c7720d3ecdeec222.dir
+      size: 574840860
+      nfiles: 4990
   validate:
     cmd: python src/catops/data/validate.py
     deps:
-    - path: data/processed
+    - path: data/processed/cat
       hash: md5
-      md5: 8a3c08e1678bd09a49189c14189e4f26.dir
-      size: 792879959
-      nfiles: 7391
+      md5: 28ead14a2eb4039d266595c512b6fd14.dir
+      size: 217742936
+      nfiles: 2400
+    - path: data/processed/not_cat
+      hash: md5
+      md5: 6320da84e59a8019c7720d3ecdeec222.dir
+      size: 574840860
+      nfiles: 4990
     - path: src/catops/data/validate.py
       hash: md5
       md5: 6f988ffa0848028ff6ef59e8fcfffc7e
       size: 2965
+    outs:
+    - path: data/processed/metadata.csv
+      hash: md5
+      md5: 07d161d82c76328fd23cf5e5fbada57a
+      size: 296163
