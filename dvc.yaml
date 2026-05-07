@@ -1,7 +1,14 @@
 stages:
   ingest:
-    cmd: python src/catops/data/ingest.py
+    cmd: python -m src.catops.data.ingest
     deps:
       - src/catops/data/ingest.py
     outs:
       - data/processed
+
+  validate:
+    cmd: python src/catops/data/validate.py
+    deps:
+      - src/catops/data/validate.py
+      - data/processed
+    # No 'outs' needed — metadata.csv lives inside the already-tracked data/processed folder

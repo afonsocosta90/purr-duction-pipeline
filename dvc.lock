@@ -1,7 +1,7 @@
 schema: '2.0'
 stages:
   ingest:
-    cmd: python src/catops/data/ingest.py
+    cmd: python -m src.catops.data.ingest
     deps:
     - path: src/catops/data/ingest.py
       hash: md5
@@ -13,3 +13,15 @@ stages:
       md5: 69fcc290621ad6f3e57cf2146c4b4917.dir
       size: 792583796
       nfiles: 7390
+  validate:
+    cmd: python src/catops/data/validate.py
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: 8a3c08e1678bd09a49189c14189e4f26.dir
+      size: 792879959
+      nfiles: 7391
+    - path: src/catops/data/validate.py
+      hash: md5
+      md5: 6f988ffa0848028ff6ef59e8fcfffc7e
+      size: 2965
