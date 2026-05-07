@@ -1,0 +1,15 @@
+schema: '2.0'
+stages:
+  ingest:
+    cmd: python src/catops/data/ingest.py
+    deps:
+    - path: src/catops/data/ingest.py
+      hash: md5
+      md5: 3a1e8951076871d6eb250c28365dd76e
+      size: 2116
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: 69fcc290621ad6f3e57cf2146c4b4917.dir
+      size: 792583796
+      nfiles: 7390
