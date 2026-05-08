@@ -20,7 +20,7 @@ dependencies = [
     "pillow (>=12.2.0,<13.0.0)",
     "tqdm (>=4.67.3,<5.0.0)",
     "mlflow (<3.13)",
-    "scikit-learn (>=1.8.0,<2.0.0)",
+    "scikit-learn (>=1.5.0,<2.0.0)",
     "prefect (>=3.0.0)",
     "greenlet (>=3.5.0,<4.0.0)"
 ]
@@ -34,4 +34,7 @@ build-backend = "poetry.core.masonry.api"
 name = "pytorch_cpu"
 url = "https://download.pytorch.org/whl/cpu"
 priority = "explicit"
+
+[tool.poetry]
+package-mode = false
 
