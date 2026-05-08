@@ -26,16 +26,16 @@ What starts as a simple notebook model will be transformed into a **complete MLO
 
 ## 2. Phase Roadmap
 
-| Phase | Description                               | Status    |
-|-------|-------------------------------------------|-----------|
-| 1     | Project scaffold (Poetry + DVC + Git)     | ✅ Done   |
-| 2     | Data ingestion + validation               | ✅ Done   |
-| 3     | Feature engineering + train/val/test split | Planned  |
-| 4     | Model training (PyTorch + Hydra)          | Planned   |
-| 5     | Experiment tracking (MLflow)              | Planned   |
-| 6     | CI/CD pipeline (GitHub Actions)           | Planned   |
-| 7     | Model serving (BentoML + FastAPI)         | Planned   |
-| 8     | Monitoring + drift detection              | Planned   |
+| Phase | Description                                      | Status    |
+|-------|--------------------------------------------------|-----------|
+| 1     | Project scaffold (Poetry + DVC + Git)            | ✅ Done   |
+| 2     | Data ingestion + validation                      | ✅ Done   |
+| 3     | Feature engineering + stratified train/val/test split | ✅ Done   |
+| 4     | Model training (PyTorch + Hydra)                 | Planned   |
+| 5     | Experiment tracking (MLflow)                     | Planned   |
+| 6     | CI/CD pipeline (GitHub Actions)                  | Planned   |
+| 7     | Model serving (BentoML + FastAPI)                | Planned   |
+| 8     | Monitoring + drift detection                     | Planned   |
 
 ---
 
@@ -144,6 +144,20 @@ ingest  ──►  validate
 ```
 Both stages are cached — `dvc repro` is a no-op if inputs are unchanged.
 
+### 5.1.3 Features Stage (Phase 3 – ✅ Done)
+
+**build_features.py** (`src/catops/features/build_features.py`)
+
+| Responsibility                  | Detail |
+|---------------------------------|--------|
+| Stratified split                | 70/15/15 using `label` column + fixed seed=42 |
+| Outputs                         | `train.csv`, `val.csv`, `test.csv` (paths + labels only) |
+| Preprocessing decisions         | Resize target (224×224) + normalization stats (saved as `features_config.json`) |
+| Validation                      | Extended gates in `validate.py` (class balance preserved, no leakage) |
+| DVC stage                       | `features` (cached, depends on `validate`) |
+
+All artifacts are now part of the official **data contract** consumed by training.
+
 ### 5.2 Feature Layer (Phase 3 — planned)
 - Hydra config to control image size, normalization, augmentation
 - Stratified 70/15/15 train/val/test split written to DVC-tracked CSVs
@@ -230,6 +244,14 @@ purr-duction-pipeline/
 ├── Makefile
 ├── .pre-commit-config.yaml
 └── README.md
+├── data/processed/
+│   ├── cat/
+│   ├── not_cat/
+│   ├── metadata.csv
+│   ├── train.csv          # ← NEW Phase 3
+│   ├── val.csv            # ← NEW Phase 3
+│   ├── test.csv           # ← NEW Phase 3
+│   └── features_config.json # ← NEW Phase 3
 ```
 
 **Planned additions (Phase 3+)**

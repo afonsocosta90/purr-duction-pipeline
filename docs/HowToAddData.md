@@ -27,19 +27,19 @@ poetry run dvc push
 ### 3. What happens automatically
 
 - `ingest.py` stage scans and organizes all images (old + new)
-- `validate.py` stage runs quality gates:
-    - Both classes must exist
-    - Reasonable class balance (>30% each)
-    - No corrupted or tiny files
-    - No duplicate paths
-- `data/processed/metadata.csv` is automatically updated
+- `validate.py` stage runs quality gates (classes, balance, file integrity, deduplication)
+- `build_features.py` stage (Phase 3) runs **stratified split** + saves resize/normalization config
+- `data/processed/` is updated with:
+  - `train.csv`, `val.csv`, `test.csv` (locked splits)
+  - `features_config.json` (resize target + normalization stats)
 - Pipeline fails early if any gate breaks
 
 ### Verify the update
 
 ```bash
 poetry run dvc status
-wc -l data/processed/metadata.csv   # should show increased count
+wc -l data/processed/{train.csv,val.csv,test.csv}   # check split sizes
+cat data/processed/features_config.json | head -n 15
 ````
 
 # Important Production Rules
