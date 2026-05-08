@@ -72,3 +72,31 @@ stages:
       hash: md5
       md5: 682990a54c188bb226eb8763ee387637
       size: 36795
+  train:
+    cmd: python -m src.catops.training.train
+    deps:
+    - path: configs/config.yaml
+      hash: md5
+      md5: 66a67bcbcbfa24fa9c80257238ec544c
+      size: 156
+    - path: configs/model.yaml
+      hash: md5
+      md5: f06a34858a078b443ce04af992343e2b
+      size: 98
+    - path: configs/training.yaml
+      hash: md5
+      md5: e01f5b138582c46a1877da08c52032b8
+      size: 233
+    - path: data/processed/features_config.json
+      hash: md5
+      md5: 3a1145f9ec020db6fb5facf96ddbc521
+      size: 264
+    - path: src/catops/training/train.py
+      hash: md5
+      md5: 8dcb55236772fa5c0bba1cb2c22905cc
+      size: 3858
+    outs:
+    - path: models/best_model.pt
+      hash: md5
+      md5: cecbad350ba1be58c2b23fa05b95af41
+      size: 94363089
