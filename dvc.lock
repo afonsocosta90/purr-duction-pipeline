@@ -93,10 +93,10 @@ stages:
       size: 264
     - path: src/catops/training/train.py
       hash: md5
-      md5: 8dcb55236772fa5c0bba1cb2c22905cc
-      size: 3858
+      md5: 6179f3447d97ce8054cccb51b4e23f03
+      size: 4287
     outs:
     - path: models/best_model.pt
       hash: md5
-      md5: cecbad350ba1be58c2b23fa05b95af41
+      md5: e57ff570dd900e32be19847e6f49e085
       size: 94363089
