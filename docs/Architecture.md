@@ -3,9 +3,9 @@
 **Binary Image Classification MLOps System**  
 *Cat vs. Not-Cat* – Production-Ready, Fully Automated, Reproducible Pipeline
 
-**Version**: 1.0  
+**Version**: 1.1  
 **Last Updated**: 2026-05-08  
-**Status**: Phase 4 of 8 complete — ResNet50 training + MLflow tracking + automated model promotion in production
+**Status**: Phase 5 of 8 complete — real evaluation module, full MLflow artifact logging, split-aware training
 
 ## 1. Project Overview
 
@@ -32,7 +32,7 @@ What starts as a simple notebook model will be transformed into a **complete MLO
 | 2     | Data ingestion + validation                      | ✅ Done   |
 | 3     | Feature engineering + stratified train/val/test split | ✅ Done   |
 | 4     | Model training (PyTorch + Hydra + MLflow)        | ✅ Done   |
-| 5     | Experiment tracking (MLflow full integration)    | Planned   |
+| 5     | Experiment tracking (MLflow full integration)    | ✅ Done   |
 | 6     | CI/CD pipeline (GitHub Actions)                  | Planned   |
 | 7     | Model serving (BentoML + FastAPI)                | Planned   |
 | 8     | Monitoring + drift detection                     | Planned   |
@@ -53,10 +53,12 @@ flowchart TD
         SPLIT["stratified split<br/>train / val / test"]
         FEAT["resize · normalize · augment"]
     end
-    subgraph Training["Training ✅ Phase 4"]
+    subgraph Training["Training + Evaluation ✅ Phases 4–5"]
         HYDRA["Hydra config"]
+        DS["CatDataset<br/>split-aware CSV loader"]
         TRAIN["PyTorch trainer<br/>ResNet50 transfer learning"]
-        MLFLOW["MLflow<br/>tracking + model promotion"]
+        EVAL["evaluate.py<br/>acc · F1 · precision · recall · ROC-AUC"]
+        MLFLOW["MLflow<br/>metrics + artifacts + model promotion"]
     end
     subgraph CICD["CI/CD — Phase 6"]
         GH["GitHub Actions<br/>lint → test → repro → promote"]
@@ -71,7 +73,8 @@ flowchart TD
     end
     RAW --> INGEST --> PROC --> VAL
     VAL --> SPLIT --> FEAT --> TRAIN
-    HYDRA --> TRAIN --> MLFLOW
+    HYDRA --> TRAIN
+    DS --> TRAIN --> EVAL --> MLFLOW
     MLFLOW --> GH --> BENTO --> API
     API --> EVIDENTLY --> PROM
     PROM -->|"drift alert → retrain"| RAW
@@ -158,21 +161,43 @@ Both stages are cached — `dvc repro` is a no-op if inputs are unchanged.
 
 All artifacts are now part of the official **data contract** consumed by training.
 
-### 5.2 Training Layer (Phase 4 — ✅ implemented)
+### 5.2 Training Layer (Phases 4–5 — ✅ implemented)
+
+**dataset.py** (`src/catops/data/dataset.py`)
+
+| Responsibility | Detail |
+|---|---|
+| Purpose | Split-aware image loader — replaces `ImageFolder` over raw dirs |
+| Input | Any of `train.csv`, `val.csv`, `test.csv` (columns: `image_path`, `label`) |
+| Label mapping | `cat → 1`, `not_cat → 0` |
+| Transforms | Injected at construction (resize + normalize from `features_config.json`) |
 
 **train.py** (`src/catops/training/train.py`)
 
 | Responsibility | Detail |
 |---|---|
-| Model | ResNet50 (pretrained ImageNet) — final FC replaced with Dropout + Linear(2) |
+| Model | ResNet50 — modern `ResNet50_Weights.IMAGENET1K_V1` API (no deprecation warnings) |
+| Dataset | `CatDataset(train.csv)` — respects stratified split, no data leakage |
 | Device | MPS (Apple Silicon) if available, else CPU |
-| Optimizer | Adam, lr=0.001 |
+| Optimizer | Adam, lr from `cfg.training.learning_rate` |
 | Loss | CrossEntropyLoss |
 | Config | Hydra (`configs/config.yaml` → `model.yaml` + `training.yaml`) |
 | Reproducibility | `torch.manual_seed` fixed via `cfg.training.seed` |
-| Tracking | MLflow experiment `am-i-a-cat`: params, per-epoch train loss, final metrics |
-| Promotion | If accuracy ≥ 0.94 **and** F1 ≥ 0.93 → model logged to MLflow registry + tagged `staging` |
+| Tracking | MLflow experiment `am-i-a-cat`: params, per-epoch train loss, val metrics, artifacts |
+| Promotion | Real val metrics gated: accuracy ≥ 0.94 **and** F1 ≥ 0.93 → logged to MLflow registry + tagged `staging` |
 | DVC output | `models/best_model.pt` (state dict) |
+
+**evaluate.py** (`src/catops/evaluation/evaluate.py`)
+
+| Metric / Artifact | Detail |
+|---|---|
+| Accuracy | `sklearn.metrics.accuracy_score` on val (or test) split |
+| F1 | Weighted F1 score |
+| Precision / Recall | Weighted, per-class breakdown |
+| ROC-AUC | Binary, on softmax probabilities |
+| Confusion matrix | Seaborn heatmap — logged as `artifacts/confusion_matrix.png` |
+| ROC curve | Matplotlib — logged as `artifacts/roc_curve.png` |
+| Classification report | Text artifact — logged as `artifacts/classification_report.txt` |
 
 **Configs** (`configs/`)
 
@@ -182,14 +207,18 @@ All artifacts are now part of the official **data contract** consumed by trainin
 | `training.yaml` | `epochs: 10`, `batch_size: 32`, `lr: 0.001`, `seed: 42` |
 | `training.yaml` (promotion) | `min_accuracy: 0.94`, `min_f1: 0.93`, `min_precision: 0.90` |
 
-> **Note:** Evaluation metrics in Phase 4 are placeholders (accuracy=0.96, F1=0.95). Real per-split evaluation is Phase 5.
+**DVC train stage dependencies (updated)**
+```
+features → train (depends on: train.py, evaluate.py, dataset.py, feature CSVs, configs)
+           outs:  models/best_model.pt, artifacts/
+```
 
-### 5.3 Serving Layer (Phase 7 — planned)
+### 5.4 Serving Layer (Phase 7 — planned)
 - **Packaging**: BentoML with ONNX export + TorchScript fallback
 - **API**: FastAPI (async) + Pydantic v2 validation
 - **Endpoints**: `/predict`, `/batch_predict`, `/health`, `/metrics`, `/drift-report`
 
-### 5.4 CI/CD (Phase 6 — planned)
+### 5.5 CI/CD (Phase 6 — planned)
 GitHub Actions workflow stages:
 1. Lint (Ruff + Black + Mypy) + unit tests
 2. `dvc repro` + data validation
@@ -198,7 +227,7 @@ GitHub Actions workflow stages:
 5. Docker build + push
 6. Deploy to staging → smoke tests → production
 
-### 5.5 Monitoring (Phase 8 — planned)
+### 5.6 Monitoring (Phase 8 — planned)
 - **Data drift**: Evidently AI (feature distribution shift)
 - **Model drift**: Prometheus metrics + Grafana dashboards
 - **Logging**: structured JSON + OpenTelemetry traces
@@ -214,8 +243,9 @@ GitHub Actions workflow stages:
 | Pre-commit hooks    | pre-commit + DVC hooks        | ✅ Active | Enforce DVC sync on commit/push |
 | Data processing     | Pillow + pandas + tqdm        | ✅ Active | Image handling and metadata |
 | Config management   | Hydra + OmegaConf             | ✅ Active | Multi-run, sweepable configs |
-| Training            | PyTorch 2 + TorchVision       | ✅ Active | ResNet50 transfer learning |
-| Experiment tracking | MLflow                        | ✅ Active | Run tracking + model promotion |
+| Training            | PyTorch 2 + TorchVision       | ✅ Active | ResNet50 transfer learning, split-aware CatDataset |
+| Evaluation          | scikit-learn + matplotlib + seaborn | ✅ Active | Full classification metrics + confusion matrix + ROC curve |
+| Experiment tracking | MLflow                        | ✅ Active | Run tracking, artifact logging, model promotion |
 | Serving             | BentoML + FastAPI             | Planned  | ONNX/TorchScript, easy scaling |
 | Containerisation    | Docker (multi-stage)          | Planned  | Security & minimal image size |
 | CI/CD               | GitHub Actions                | Planned  | Native GH integration |
@@ -233,12 +263,14 @@ purr-duction-pipeline/
 │       ├── __init__.py
 │       ├── data/
 │       │   ├── ingest.py          # Phase 2: extract + classify
-│       │   └── validate.py        # Phase 2: quality gates + metadata.csv
+│       │   ├── validate.py        # Phase 2: quality gates + metadata.csv
+│       │   └── dataset.py         # Phase 5: CatDataset, split-aware CSV loader
 │       ├── features/
 │       │   └── build_features.py  # Phase 3: stratified split + features_config.json
 │       ├── training/
-│       │   └── train.py           # Phase 4: ResNet50 + MLflow + promotion
-│       ├── evaluation/            # Phase 5: real metrics, per-split eval
+│       │   └── train.py           # Phases 4–5: ResNet50 + CatDataset + real eval + MLflow
+│       ├── evaluation/
+│       │   └── evaluate.py        # Phase 5: sklearn metrics + confusion matrix + ROC curve
 │       ├── serving/               # Phase 7: BentoML + FastAPI
 │       ├── utils/                 # shared logging, config, etc.
 │       └── __init__.py

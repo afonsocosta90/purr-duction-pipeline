@@ -5,8 +5,8 @@
 A complete end-to-end demonstration of modern MLOps best practices in 2026. This project showcases how to take a simple image classification model from notebook to a fully automated, reproducible, monitored, and deployable production system.
 
 ## 🎯 Current Project Status
-**Phase 4/8 - Model Training (PyTorch + MLflow) COMPLETE** ✅  
-**Next: Phase 5/8 - Experiment Tracking (MLflow full integration)**
+**Phase 5/8 - Experiment Tracking (MLflow full integration) COMPLETE** ✅  
+**Next: Phase 6/8 - CI/CD Pipeline (GitHub Actions)**
 
 **Achieved:**
 - Full project scaffolding with **Poetry**, **Git**, and **DVC**
@@ -18,14 +18,15 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 - Robust production quality gates (file integrity, duplicates, image corruption, class balance)
 - Stratified 70/15/15 train/val/test split locked via DVC
 - Hydra config management (`configs/data.yaml`, `model.yaml`, `training.yaml`)
-- **ResNet50 transfer learning** training stage with MLflow experiment tracking
-- Automated model promotion: saved to `models/best_model.pt` and tagged in MLflow when accuracy ≥ 0.94 and F1 ≥ 0.93
+- **ResNet50 transfer learning** training stage (modern weights API, split-aware via `CatDataset`)
+- **Full evaluation module** (`evaluate.py`): accuracy, F1, precision, recall, ROC-AUC, confusion matrix + ROC curve artifacts logged to MLflow
+- **Real promotion logic** based on held-out val split metrics (accuracy ≥ 0.94 and F1 ≥ 0.93)
 - Fully reproducible pipeline via `dvc repro`
 - Pre-commit hooks, `.dvcignore`, and best-practice Git workflow
 - Docker-ready environment (`docker/`, `.dockerignore`)
 - GitHub Actions workflow foundation (`.github/workflows/`)
 
-**Next Phase (5/8):** Full MLflow experiment tracking integration
+**Next Phase (6/8):** CI/CD pipeline (GitHub Actions)
 
 ## 📁 Project Structure
 ```bash
@@ -39,8 +40,9 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 ├── pipelines/               # DVC pipeline stages
 ├── src/catops/              # Main production Python package
 │   ├── data/ingest.py
+│   ├── data/dataset.py      # CatDataset — split-aware CSV loader
 │   ├── features/
-│   ├── evaluation/
+│   ├── evaluation/evaluate.py  # sklearn metrics + MLflow artifacts
 │   ├── serving/
 │   ├── utils/
 │   └── __init__.py
@@ -65,8 +67,9 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 | CI/CD | GitHub Actions | ✅ Skeleton |
 | Config Management | Hydra | ✅ Phase 3 |
 | Training | PyTorch (ResNet50) | ✅ Phase 4 |
-| Experiment Tracking | MLflow | ✅ Phase 4 (basic) |
-| Serving | FastAPI + ONNX / TorchServe / BentoML | ⏳ Phase 6 |
+| Evaluation | scikit-learn + matplotlib + seaborn | ✅ Phase 5 |
+| Experiment Tracking | MLflow (full integration) | ✅ Phase 5 |
+| Serving | FastAPI + ONNX / TorchServe / BentoML | ⏳ Phase 7 |
 
 ## 🚀 Quick Start
 
