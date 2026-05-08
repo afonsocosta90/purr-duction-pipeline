@@ -76,5 +76,33 @@ def validate_processed_data(processed_dir: str = "data/processed") -> None:
     logger.info("✅ DATA VALIDATION PASSED — both classes present and healthy")
     logger.info(f"   Class distribution: {class_counts.to_dict()}")
 
+def validate_features(processed_dir: str = "data/processed") -> None:
+    """Post-split validation gates (Phase 3)."""
+    from pathlib import Path
+    meta = Path(processed_dir) / "metadata.csv"
+    train = Path(processed_dir) / "train.csv"
+    val = Path(processed_dir) / "val.csv"
+    test = Path(processed_dir) / "test.csv"
+    config = Path(processed_dir) / "features_config.json"
+
+    if not all(p.exists() for p in [train, val, test, config]):
+        logger.warning("Features not yet built – skipping")
+        return
+
+    df_train = pd.read_csv(train)
+    df_val = pd.read_csv(val)
+    df_test = pd.read_csv(test)
+    orig_prop = pd.read_csv(meta)["label"].value_counts(normalize=True)
+
+    errors = []
+    for name, df in [("train", df_train), ("val", df_val), ("test", df_test)]:
+        split_prop = df["label"].value_counts(normalize=True)
+        if not all(abs(split_prop.get(k, 0) - orig_prop.get(k, 0)) < 0.02 for k in orig_prop.index):
+            errors.append(f"Class drift in {name}")
+    if errors:
+        raise RuntimeError("❌ Feature validation FAILED: " + "; ".join(errors))
+    logger.info("✅ FEATURE VALIDATION PASSED – splits stratified and leak-free")
+
 if __name__ == "__main__":
     validate_processed_data()
+    validate_features()

@@ -33,10 +33,42 @@ stages:
       nfiles: 4990
     - path: src/catops/data/validate.py
       hash: md5
-      md5: 6f988ffa0848028ff6ef59e8fcfffc7e
-      size: 2965
+      md5: 81ef8325637e4d335cb8ba6d3c7f3a65
+      size: 4179
     outs:
     - path: data/processed/metadata.csv
       hash: md5
       md5: 07d161d82c76328fd23cf5e5fbada57a
       size: 296163
+  features:
+    cmd: python -m src.catops.features.build_features
+    deps:
+    - path: configs/data.yaml
+      hash: md5
+      md5: 27b5c5c7f53c38c07c25ff3545202075
+      size: 179
+    - path: data/processed/metadata.csv
+      hash: md5
+      md5: 07d161d82c76328fd23cf5e5fbada57a
+      size: 296163
+    - path: src/catops/features/build_features.py
+      hash: md5
+      md5: 331e26fd738b343a47f5865b2f662b9f
+      size: 2576
+    outs:
+    - path: data/processed/features_config.json
+      hash: md5
+      md5: 3a1145f9ec020db6fb5facf96ddbc521
+      size: 264
+    - path: data/processed/test.csv
+      hash: md5
+      md5: e1f7c646851d2dbe80727db5124086f5
+      size: 37347
+    - path: data/processed/train.csv
+      hash: md5
+      md5: f5aedc67a67ecdc0f9a1fcd927cbd791
+      size: 173793
+    - path: data/processed/val.csv
+      hash: md5
+      md5: 682990a54c188bb226eb8763ee387637
+      size: 36795

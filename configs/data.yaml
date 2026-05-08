@@ -1,0 +1,12 @@
+# configs/data.yaml
+version: 1.0
+
+resize:
+  target_size: [224, 224]
+  interpolation: "bilinear"
+
+split:
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  random_seed: 42

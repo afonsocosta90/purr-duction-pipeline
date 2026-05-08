@@ -15,3 +15,15 @@ stages:
       - data/processed/not_cat
     outs:
       - data/processed/metadata.csv
+
+  features:
+    cmd: python -m src.catops.features.build_features
+    deps:
+      - src/catops/features/build_features.py
+      - configs/data.yaml
+      - data/processed/metadata.csv
+    outs:
+      - data/processed/train.csv
+      - data/processed/val.csv
+      - data/processed/test.csv
+      - data/processed/features_config.json
