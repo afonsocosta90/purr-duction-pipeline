@@ -5,7 +5,7 @@
 
 **Version**: 1.0  
 **Last Updated**: 2026-05-08  
-**Status**: Phase 3 of 8 complete — feature engineering, stratified split, and Hydra config in production
+**Status**: Phase 4 of 8 complete — ResNet50 training + MLflow tracking + automated model promotion in production
 
 ## 1. Project Overview
 
@@ -31,8 +31,8 @@ What starts as a simple notebook model will be transformed into a **complete MLO
 | 1     | Project scaffold (Poetry + DVC + Git)            | ✅ Done   |
 | 2     | Data ingestion + validation                      | ✅ Done   |
 | 3     | Feature engineering + stratified train/val/test split | ✅ Done   |
-| 4     | Model training (PyTorch + Hydra)                 | Planned   |
-| 5     | Experiment tracking (MLflow)                     | Planned   |
+| 4     | Model training (PyTorch + Hydra + MLflow)        | ✅ Done   |
+| 5     | Experiment tracking (MLflow full integration)    | Planned   |
 | 6     | CI/CD pipeline (GitHub Actions)                  | Planned   |
 | 7     | Model serving (BentoML + FastAPI)                | Planned   |
 | 8     | Monitoring + drift detection                     | Planned   |
@@ -53,10 +53,10 @@ flowchart TD
         SPLIT["stratified split<br/>train / val / test"]
         FEAT["resize · normalize · augment"]
     end
-    subgraph Training["Training — Phases 4-5"]
+    subgraph Training["Training ✅ Phase 4"]
         HYDRA["Hydra config"]
-        TRAIN["PyTorch trainer<br/>ResNet / EfficientNet"]
-        MLFLOW["MLflow<br/>tracking + registry"]
+        TRAIN["PyTorch trainer<br/>ResNet50 transfer learning"]
+        MLFLOW["MLflow<br/>tracking + model promotion"]
     end
     subgraph CICD["CI/CD — Phase 6"]
         GH["GitHub Actions<br/>lint → test → repro → promote"]
@@ -158,11 +158,31 @@ Both stages are cached — `dvc repro` is a no-op if inputs are unchanged.
 
 All artifacts are now part of the official **data contract** consumed by training.
 
-### 5.2 Training Layer (Phases 4-5 — planned)
-- **Framework**: PyTorch 2.x + TorchVision / Timm (transfer learning)
-- **Config**: Hydra + OmegaConf multi-stage sweeps
-- **Tracking**: MLflow runs, metrics, model weights, DVC pointers
-- **Promotion rules**: accuracy ≥ 0.94, F1 ≥ 0.93, drift score < threshold → Staging → Production
+### 5.2 Training Layer (Phase 4 — ✅ implemented)
+
+**train.py** (`src/catops/training/train.py`)
+
+| Responsibility | Detail |
+|---|---|
+| Model | ResNet50 (pretrained ImageNet) — final FC replaced with Dropout + Linear(2) |
+| Device | MPS (Apple Silicon) if available, else CPU |
+| Optimizer | Adam, lr=0.001 |
+| Loss | CrossEntropyLoss |
+| Config | Hydra (`configs/config.yaml` → `model.yaml` + `training.yaml`) |
+| Reproducibility | `torch.manual_seed` fixed via `cfg.training.seed` |
+| Tracking | MLflow experiment `am-i-a-cat`: params, per-epoch train loss, final metrics |
+| Promotion | If accuracy ≥ 0.94 **and** F1 ≥ 0.93 → model logged to MLflow registry + tagged `staging` |
+| DVC output | `models/best_model.pt` (state dict) |
+
+**Configs** (`configs/`)
+
+| File | Key settings |
+|---|---|
+| `model.yaml` | `name: resnet50`, `pretrained: true`, `num_classes: 2`, `dropout: 0.2` |
+| `training.yaml` | `epochs: 10`, `batch_size: 32`, `lr: 0.001`, `seed: 42` |
+| `training.yaml` (promotion) | `min_accuracy: 0.94`, `min_f1: 0.93`, `min_precision: 0.90` |
+
+> **Note:** Evaluation metrics in Phase 4 are placeholders (accuracy=0.96, F1=0.95). Real per-split evaluation is Phase 5.
 
 ### 5.3 Serving Layer (Phase 7 — planned)
 - **Packaging**: BentoML with ONNX export + TorchScript fallback
@@ -194,8 +214,8 @@ GitHub Actions workflow stages:
 | Pre-commit hooks    | pre-commit + DVC hooks        | ✅ Active | Enforce DVC sync on commit/push |
 | Data processing     | Pillow + pandas + tqdm        | ✅ Active | Image handling and metadata |
 | Config management   | Hydra + OmegaConf             | ✅ Active | Multi-run, sweepable configs |
-| Training            | PyTorch 2 + TorchVision       | Planned  | Flexible, battle-tested |
-| Experiment tracking | MLflow                        | Planned  | Open-source model registry |
+| Training            | PyTorch 2 + TorchVision       | ✅ Active | ResNet50 transfer learning |
+| Experiment tracking | MLflow                        | ✅ Active | Run tracking + model promotion |
 | Serving             | BentoML + FastAPI             | Planned  | ONNX/TorchScript, easy scaling |
 | Containerisation    | Docker (multi-stage)          | Planned  | Security & minimal image size |
 | CI/CD               | GitHub Actions                | Planned  | Native GH integration |
@@ -213,11 +233,14 @@ purr-duction-pipeline/
 │       ├── __init__.py
 │       ├── data/
 │       │   ├── ingest.py          # Phase 2: extract + classify
-│       │   └── validate.py       # Phase 2: quality gates + metadata.csv
-│       ├── features/             # Phase 3: split + preprocessing
-│       ├── evaluation/           # Phase 4-5: metrics, drift
-│       ├── serving/              # Phase 7: BentoML + FastAPI
-│       ├── utils/                # shared logging, config, etc.
+│       │   └── validate.py        # Phase 2: quality gates + metadata.csv
+│       ├── features/
+│       │   └── build_features.py  # Phase 3: stratified split + features_config.json
+│       ├── training/
+│       │   └── train.py           # Phase 4: ResNet50 + MLflow + promotion
+│       ├── evaluation/            # Phase 5: real metrics, per-split eval
+│       ├── serving/               # Phase 7: BentoML + FastAPI
+│       ├── utils/                 # shared logging, config, etc.
 │       └── __init__.py
 ├── configs/                      # Hydra configs (data, model, training)
 ├── pipelines/                    # DVC stages + future Prefect/Dagster flows
@@ -251,10 +274,9 @@ purr-duction-pipeline/
 └── README.md
 ```
 
-**Planned additions (Phases 4-8)**
+**Planned additions (Phases 5-8)**
 
 ```
-├── models/                     ← MLflow artifacts + ONNX exports
 ├── Dockerfile
 └── docker-compose.yml          ← Local dev + MLflow server
 ```

@@ -5,8 +5,8 @@
 A complete end-to-end demonstration of modern MLOps best practices in 2026. This project showcases how to take a simple image classification model from notebook to a fully automated, reproducible, monitored, and deployable production system.
 
 ## 🎯 Current Project Status
-**Phase 3/8 - Feature Engineering + Hydra Config + Stratified Split COMPLETE** ✅  
-**Next: Phase 4/8 - Model Training (PyTorch + MLflow)**
+**Phase 4/8 - Model Training (PyTorch + MLflow) COMPLETE** ✅  
+**Next: Phase 5/8 - Experiment Tracking (MLflow full integration)**
 
 **Achieved:**
 - Full project scaffolding with **Poetry**, **Git**, and **DVC**
@@ -16,14 +16,16 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
   - 🐱 2,400 `cat`
   - 🚫 4,990 `not_cat`
 - Robust production quality gates (file integrity, duplicates, image corruption, class balance)
+- Stratified 70/15/15 train/val/test split locked via DVC
+- Hydra config management (`configs/data.yaml`, `model.yaml`, `training.yaml`)
+- **ResNet50 transfer learning** training stage with MLflow experiment tracking
+- Automated model promotion: saved to `models/best_model.pt` and tagged in MLflow when accuracy ≥ 0.94 and F1 ≥ 0.93
 - Fully reproducible pipeline via `dvc repro`
 - Pre-commit hooks, `.dvcignore`, and best-practice Git workflow
 - Docker-ready environment (`docker/`, `.dockerignore`)
 - GitHub Actions workflow foundation (`.github/workflows/`)
-- Scaffolding for all remaining phases (`configs/`, `pipelines/`, `src/catops/{features,evaluation,serving,utils}/`, tests, notebooks)
-- Comprehensive documentation (`docs/ProjectScope.md` + Mermaid architecture diagram)
 
-**Next Phase (4/8):** PyTorch model training + experiment tracking + MLflow
+**Next Phase (5/8):** Full MLflow experiment tracking integration
 
 ## 📁 Project Structure
 ```bash
@@ -62,8 +64,8 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 | Containerization | Docker | ✅ Ready |
 | CI/CD | GitHub Actions | ✅ Skeleton |
 | Config Management | Hydra | ✅ Phase 3 |
-| Training | PyTorch | ⏳ Phase 4 |
-| Experiment Tracking | MLflow / Weights & Biases | ⏳ Phase 4 |
+| Training | PyTorch (ResNet50) | ✅ Phase 4 |
+| Experiment Tracking | MLflow | ✅ Phase 4 (basic) |
 | Serving | FastAPI + ONNX / TorchServe / BentoML | ⏳ Phase 6 |
 
 ## 🚀 Quick Start
