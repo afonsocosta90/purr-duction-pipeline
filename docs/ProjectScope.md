@@ -8,8 +8,6 @@
 
 ## Project Pipeline
 
-## Project Pipeline
-
 | Phase | Name                              | Core Concept                          | Why It Matters |
 |-------|-----------------------------------|---------------------------------------|----------------|
 | 1     | Project Setup & Tooling           | Reproducible environments + code organization | Ensure anyone can run the project with a clear setup. |

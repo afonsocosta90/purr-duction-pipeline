@@ -1,0 +1,13 @@
+# configs/training.yaml
+training:
+  epochs: 10
+  batch_size: 32
+  learning_rate: 0.001
+  optimizer: "adam"
+  seed: 42
+
+  # Production model promotion rules
+  promotion:
+    min_accuracy: 0.94
+    min_f1: 0.93
+    min_precision: 0.90

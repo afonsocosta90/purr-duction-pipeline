@@ -1,0 +1,6 @@
+# configs/config.yaml
+# Main Hydra entry point — composes model + training configs
+defaults:
+  - training
+  - model
+  - _self_ # keeps overrides possible

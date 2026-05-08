@@ -1,18 +1,13 @@
 [project]
 name = "purr-duction-pipeline"
 version = "0.1.0"
-description = ""
+description = "Am I a Cat? — binary image classification MLOps pipeline"
 authors = [
     {name = "Afonso Costa",email = "afonsocosta90@gmail.com"}
 ]
 readme = "README.md"
-requires-python = "^3.12"
+requires-python = ">=3.12,<4.0"
 dependencies = [
-    "pytest (>=9.0.3,<10.0.0)",
-    "pytest-cov (>=7.1.0,<8.0.0)",
-    "black (>=26.3.1,<27.0.0)",
-    "ruff (>=0.15.12,<0.16.0)",
-    "mypy (>=2.0.0,<3.0.0)",
     "dvc[gs,s3] (>=3.67.1,<4.0.0)",
     "hydra-core (>=1.3.2,<2.0.0)",
     "omegaconf (>=2.3.0,<3.0.0)",
@@ -25,13 +20,19 @@ dependencies = [
     "greenlet (>=3.5.0,<4.0.0)"
 ]
 
+[tool.poetry.group.dev.dependencies]
+pytest = ">=9.0.3,<10.0.0"
+pytest-cov = ">=7.1.0,<8.0.0"
+black = ">=26.3.1,<27.0.0"
+ruff = ">=0.15.12,<0.16.0"
+mypy = ">=2.0.0,<3.0.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [[tool.poetry.source]]
-name = "pytorch_cpu"
+name = "pytorch"
 url = "https://download.pytorch.org/whl/cpu"
 priority = "explicit"
 

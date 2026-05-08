@@ -4,8 +4,8 @@
 *Cat vs. Not-Cat* – Production-Ready, Fully Automated, Reproducible Pipeline
 
 **Version**: 1.0  
-**Last Updated**: 2026-05-07  
-**Status**: Phase 2 of 8 complete — data ingestion and validation in production
+**Last Updated**: 2026-05-08  
+**Status**: Phase 3 of 8 complete — feature engineering, stratified split, and Hydra config in production
 
 ## 1. Project Overview
 
@@ -49,7 +49,7 @@ flowchart TD
         PROC["data/processed/<br/>cat/ · not_cat/ · metadata.csv"]
         VAL["validate.py<br/>quality gates"]
     end
-    subgraph Features["Feature Layer — Phase 3"]
+    subgraph Features["Feature Layer ✅ Phase 3"]
         SPLIT["stratified split<br/>train / val / test"]
         FEAT["resize · normalize · augment"]
     end
@@ -158,23 +158,18 @@ Both stages are cached — `dvc repro` is a no-op if inputs are unchanged.
 
 All artifacts are now part of the official **data contract** consumed by training.
 
-### 5.2 Feature Layer (Phase 3 — planned)
-- Hydra config to control image size, normalization, augmentation
-- Stratified 70/15/15 train/val/test split written to DVC-tracked CSVs
-- No data leakage: split is done once and locked in `dvc.lock`
-
-### 5.3 Training Layer (Phases 4-5 — planned)
+### 5.2 Training Layer (Phases 4-5 — planned)
 - **Framework**: PyTorch 2.x + TorchVision / Timm (transfer learning)
 - **Config**: Hydra + OmegaConf multi-stage sweeps
 - **Tracking**: MLflow runs, metrics, model weights, DVC pointers
 - **Promotion rules**: accuracy ≥ 0.94, F1 ≥ 0.93, drift score < threshold → Staging → Production
 
-### 5.4 Serving Layer (Phase 7 — planned)
+### 5.3 Serving Layer (Phase 7 — planned)
 - **Packaging**: BentoML with ONNX export + TorchScript fallback
 - **API**: FastAPI (async) + Pydantic v2 validation
 - **Endpoints**: `/predict`, `/batch_predict`, `/health`, `/metrics`, `/drift-report`
 
-### 5.5 CI/CD (Phase 6 — planned)
+### 5.4 CI/CD (Phase 6 — planned)
 GitHub Actions workflow stages:
 1. Lint (Ruff + Black + Mypy) + unit tests
 2. `dvc repro` + data validation
@@ -183,7 +178,7 @@ GitHub Actions workflow stages:
 5. Docker build + push
 6. Deploy to staging → smoke tests → production
 
-### 5.6 Monitoring (Phase 8 — planned)
+### 5.5 Monitoring (Phase 8 — planned)
 - **Data drift**: Evidently AI (feature distribution shift)
 - **Model drift**: Prometheus metrics + Grafana dashboards
 - **Logging**: structured JSON + OpenTelemetry traces
@@ -198,7 +193,7 @@ GitHub Actions workflow stages:
 | Code quality        | Ruff + Black + Mypy           | ✅ Active | Lint, format, type-check |
 | Pre-commit hooks    | pre-commit + DVC hooks        | ✅ Active | Enforce DVC sync on commit/push |
 | Data processing     | Pillow + pandas + tqdm        | ✅ Active | Image handling and metadata |
-| Config management   | Hydra + OmegaConf             | Planned  | Multi-run, sweepable configs |
+| Config management   | Hydra + OmegaConf             | ✅ Active | Multi-run, sweepable configs |
 | Training            | PyTorch 2 + TorchVision       | Planned  | Flexible, battle-tested |
 | Experiment tracking | MLflow                        | Planned  | Open-source model registry |
 | Serving             | BentoML + FastAPI             | Planned  | ONNX/TorchScript, easy scaling |
@@ -237,6 +232,16 @@ purr-duction-pipeline/
 │   ├── Architecture.md
 │   ├── ProjectScope.md
 │   └── mermaid-diagram.svg
+├── data/
+│   ├── raw/                      # DVC-tracked archive
+│   └── processed/
+│       ├── cat/
+│       ├── not_cat/
+│       ├── metadata.csv
+│       ├── train.csv
+│       ├── val.csv
+│       ├── test.csv
+│       └── features_config.json
 ├── dvc.yaml
 ├── dvc.lock
 ├── params.yaml
@@ -244,24 +249,12 @@ purr-duction-pipeline/
 ├── Makefile
 ├── .pre-commit-config.yaml
 └── README.md
-├── data/processed/
-│   ├── cat/
-│   ├── not_cat/
-│   ├── metadata.csv
-│   ├── train.csv          # ← NEW Phase 3
-│   ├── val.csv            # ← NEW Phase 3
-│   ├── test.csv           # ← NEW Phase 3
-│   └── features_config.json # ← NEW Phase 3
 ```
 
-**Planned additions (Phase 3+)**
+**Planned additions (Phases 4-8)**
 
 ```
-├── .github/workflows/          ← CI/CD pipelines
-├── configs/                    ← Hydra configs (data, model, training)
 ├── models/                     ← MLflow artifacts + ONNX exports
-├── notebooks/                  ← Exploration only (never production)
-├── tests/                      ← Unit + integration tests
 ├── Dockerfile
 └── docker-compose.yml          ← Local dev + MLflow server
 ```

@@ -1,0 +1,6 @@
+# configs/model.yaml
+model:
+  name: "resnet50"
+  pretrained: true
+  num_classes: 2
+  dropout: 0.2

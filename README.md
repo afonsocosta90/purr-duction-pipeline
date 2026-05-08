@@ -5,7 +5,8 @@
 A complete end-to-end demonstration of modern MLOps best practices in 2026. This project showcases how to take a simple image classification model from notebook to a fully automated, reproducible, monitored, and deployable production system.
 
 ## 🎯 Current Project Status
-**Phase 3/8 - Feature Engineering + Hydra Config + Stratified Split IN PROGRESS** ✅
+**Phase 3/8 - Feature Engineering + Hydra Config + Stratified Split COMPLETE** ✅  
+**Next: Phase 4/8 - Model Training (PyTorch + MLflow)**
 
 **Achieved:**
 - Full project scaffolding with **Poetry**, **Git**, and **DVC**
@@ -46,8 +47,7 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 ├── dvc.yaml                 # Pipeline definition
 ├── params.yaml              # Experiment parameters
 ├── Makefile                 # Developer commands
-├── pyproject.toml           # Poetry configuration
-└── project-tree.txt         # Current tree snapshot
+└── pyproject.toml           # Poetry configuration
 `````
 
 ## 🛠️ Tech Stack (Current)

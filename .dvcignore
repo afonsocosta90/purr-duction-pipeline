@@ -1,3 +1,14 @@
 # Add patterns of files dvc should ignore, which could improve
 # the performance. Learn more at
 # https://dvc.org/doc/user-guide/dvcignore
+
+# Hydra run outputs
+outputs/
+
+# MLflow tracking
+mlruns/
+mlflow.db
+
+# Python bytecode
+**/__pycache__
+**/*.pyc

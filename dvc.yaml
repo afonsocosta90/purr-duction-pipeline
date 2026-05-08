@@ -27,3 +27,14 @@ stages:
       - data/processed/val.csv
       - data/processed/test.csv
       - data/processed/features_config.json
+
+  train:
+    cmd: python -m src.catops.training.train
+    deps:
+      - src/catops/training/train.py
+      - configs/config.yaml
+      - configs/training.yaml
+      - configs/model.yaml
+      - data/processed/features_config.json
+    outs:
+      - models/best_model.pt
