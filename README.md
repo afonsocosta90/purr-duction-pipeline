@@ -5,8 +5,8 @@
 A complete end-to-end demonstration of modern MLOps best practices in 2026. This project showcases how to take a simple image classification model from notebook to a fully automated, reproducible, monitored, and deployable production system.
 
 ## 🎯 Current Project Status
-**Phase 5/8 - Experiment Tracking (MLflow full integration) COMPLETE** ✅  
-**Next: Phase 6/8 - CI/CD Pipeline (GitHub Actions)**
+**Phase 6/8 - CI/CD Pipeline (GitHub Actions) COMPLETE** ✅  
+**Next: Phase 7/8 - Model Serving & API (FastAPI + ONNX)**
 
 **Achieved:**
 - Full project scaffolding with **Poetry**, **Git**, and **DVC**
@@ -24,8 +24,9 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 - Fully reproducible pipeline via `dvc repro`
 - Pre-commit hooks, `.dvcignore`, and best-practice Git workflow
 - Docker-ready environment (`docker/`, `.dockerignore`)
+- **GitHub Actions CI/CD** (`.github/workflows/ci-cd.yml`): lint → test → DVC pull → `dvc repro` → artifact upload → Docker build/push on `workflow_dispatch`
 
-**Next Phase (6/8):** CI/CD pipeline (GitHub Actions)
+**Next Phase (7/8):** Model serving (FastAPI + ONNX)
 
 ## 📁 Project Structure
 ```bash
@@ -63,7 +64,7 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 | Data Validation | Custom production quality gates | ✅ Complete |
 | Code Quality | pre-commit hooks | ✅ Complete |
 | Containerization | Docker | ✅ Ready |
-| CI/CD | GitHub Actions | ⏳ Phase 6 |
+| CI/CD | GitHub Actions | ✅ Complete |
 | Config Management | Hydra | ✅ Phase 3 |
 | Training | PyTorch (ResNet50) | ✅ Phase 4 |
 | Evaluation | scikit-learn + matplotlib + seaborn | ✅ Phase 5 |

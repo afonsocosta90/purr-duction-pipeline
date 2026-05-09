@@ -3,9 +3,9 @@
 **Binary Image Classification MLOps System**  
 *Cat vs. Not-Cat* – Production-Ready, Fully Automated, Reproducible Pipeline
 
-**Version**: 1.1  
-**Last Updated**: 2026-05-08  
-**Status**: Phase 5 of 8 complete — real evaluation module, full MLflow artifact logging, split-aware training
+**Version**: 1.2  
+**Last Updated**: 2026-05-09  
+**Status**: Phase 6 of 8 complete — CI/CD pipeline live on GitHub Actions
 
 ## 1. Project Overview
 
@@ -33,7 +33,7 @@ What starts as a simple notebook model will be transformed into a **complete MLO
 | 3     | Feature engineering + stratified train/val/test split | ✅ Done   |
 | 4     | Model training (PyTorch + Hydra + MLflow)        | ✅ Done   |
 | 5     | Experiment tracking (MLflow full integration)    | ✅ Done   |
-| 6     | CI/CD pipeline (GitHub Actions)                  | Planned   |
+| 6     | CI/CD pipeline (GitHub Actions)                  | ✅ Done   |
 | 7     | Model serving (BentoML + FastAPI)                | Planned   |
 | 8     | Monitoring + drift detection                     | Planned   |
 
@@ -60,8 +60,8 @@ flowchart TD
         EVAL["evaluate.py<br/>acc · F1 · precision · recall · ROC-AUC"]
         MLFLOW["MLflow<br/>metrics + artifacts + model promotion"]
     end
-    subgraph CICD["CI/CD — Phase 6"]
-        GH["GitHub Actions<br/>lint → test → repro → promote"]
+    subgraph CICD["CI/CD ✅ Phase 6"]
+        GH["GitHub Actions<br/>lint → test → dvc repro → artifacts → docker"]
     end
     subgraph Serving["Serving — Phase 7"]
         BENTO["BentoML<br/>ONNX / TorchScript"]
@@ -218,14 +218,17 @@ features → train (depends on: train.py, evaluate.py, dataset.py, feature CSVs,
 - **API**: FastAPI (async) + Pydantic v2 validation
 - **Endpoints**: `/predict`, `/batch_predict`, `/health`, `/metrics`, `/drift-report`
 
-### 5.5 CI/CD (Phase 6 — planned)
-GitHub Actions workflow stages:
-1. Lint (Ruff + Black + Mypy) + unit tests
-2. `dvc repro` + data validation
-3. Model training (GPU runners)
-4. MLflow model promotion gate
-5. Docker build + push
-6. Deploy to staging → smoke tests → production
+### 5.5 CI/CD (Phase 6 — ✅ implemented)
+
+**Workflow** (`.github/workflows/ci-cd.yml`) — triggers on every push/PR to `main` and `workflow_dispatch`:
+
+| Job | Steps | Condition |
+|-----|-------|-----------|
+| `quality` | Install deps → `make lint` → `make test` | always |
+| `pipeline` | Install deps → configure DVC remote (DagsHub) → `dvc pull` → `make pipeline` → upload `models/best_model.pt` + `artifacts/` | after `quality` |
+| `docker` | Docker Buildx → GHCR login → build & push `ghcr.io/<owner>/purr-duction-pipeline:latest` | `workflow_dispatch` on `main` only |
+
+**Secrets required**: `DAGSHUB_USER`, `DAGSHUB_TOKEN` (DVC remote auth).
 
 ### 5.6 Monitoring (Phase 8 — planned)
 - **Data drift**: Evidently AI (feature distribution shift)
@@ -248,7 +251,7 @@ GitHub Actions workflow stages:
 | Experiment tracking | MLflow                        | ✅ Active | Run tracking, artifact logging, model promotion |
 | Serving             | BentoML + FastAPI             | Planned  | ONNX/TorchScript, easy scaling |
 | Containerisation    | Docker (multi-stage)          | Planned  | Security & minimal image size |
-| CI/CD               | GitHub Actions                | Planned  | Native GH integration |
+| CI/CD               | GitHub Actions                | ✅ Active | quality → pipeline → docker jobs; DagsHub DVC remote |
 | Monitoring          | Evidently AI + Prometheus     | Planned  | Drift detection + alerting |
 | Cloud (optional)    | AWS / GCP (S3 + GPU runners)  | Planned  | Scalability |
 
@@ -306,9 +309,8 @@ purr-duction-pipeline/
 └── README.md
 ```
 
-**Planned additions (Phases 5-8)**
+**Planned additions (Phases 7-8)**
 
 ```
-├── Dockerfile
 └── docker-compose.yml          ← Local dev + MLflow server
 ```
