@@ -5,8 +5,8 @@
 A complete end-to-end demonstration of modern MLOps best practices in 2026. This project showcases how to take a simple image classification model from notebook to a fully automated, reproducible, monitored, and deployable production system.
 
 ## 🎯 Current Project Status
-**Phase 6/8 - CI/CD Pipeline (GitHub Actions) COMPLETE** ✅  
-**Next: Phase 7/8 - Model Serving & API (FastAPI + ONNX)**
+**Phase 7/8 - Model Serving (FastAPI) COMPLETE** ✅  
+**Next: Phase 8/8 - Monitoring & Drift Detection**
 
 **Achieved:**
 - Full project scaffolding with **Poetry**, **Git**, and **DVC**
@@ -23,10 +23,11 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 - **Real promotion logic** based on held-out val split metrics (accuracy ≥ 0.94 and F1 ≥ 0.93)
 - Fully reproducible pipeline via `dvc repro`
 - Pre-commit hooks, `.dvcignore`, and best-practice Git workflow
-- Docker-ready environment (`docker/`, `.dockerignore`)
+- **FastAPI serving layer** (`src/catops/serving/`): `/predict`, `/health`, `/metrics` endpoints; lifespan model loading; decompression-bomb guard; content-type validation; per-label Prometheus counters + confidence histogram
+- Docker production image: non-root user, uvicorn multi-worker CMD, model path configurable via env vars
 - **GitHub Actions CI/CD** (`.github/workflows/ci-cd.yml`): lint → test → DVC pull → `dvc repro` → artifact upload → Docker build/push on `workflow_dispatch`
 
-**Next Phase (7/8):** Model serving (FastAPI + ONNX)
+**Next Phase (8/8):** Monitoring & drift detection (Evidently AI + Prometheus + Grafana)
 
 ## 📁 Project Structure
 ```bash
@@ -69,7 +70,8 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 | Training | PyTorch (ResNet50) | ✅ Phase 4 |
 | Evaluation | scikit-learn + matplotlib + seaborn | ✅ Phase 5 |
 | Experiment Tracking | MLflow (full integration) | ✅ Phase 5 |
-| Serving | FastAPI + ONNX / TorchServe / BentoML | ⏳ Phase 7 |
+| Serving | FastAPI + Prometheus | ✅ Phase 7 |
+| Monitoring | Evidently AI + Prometheus + Grafana | ⏳ Phase 8 |
 
 ## 🚀 Quick Start
 
@@ -81,18 +83,19 @@ cd purr-duction-pipeline
 # 2. Install dependencies
 make install
 
-# 3. Enter the Poetry shell
-make shell
-
-# 4. Pull the latest versioned data
+# 3. Pull the latest versioned data and run the full pipeline
 poetry run dvc pull
+make pipeline
 
-# 5. Run the full data pipeline
-poetry run dvc repro --force
+# 4. Start the API server
+make serve        # FastAPI on http://localhost:3000
 
-# 6. Explore the processed data
-ls -l data/raw/
-`````
+# 5. Test the endpoint
+make api-test     # POST a sample cat image, prints JSON prediction
+
+# 6. Scrape Prometheus metrics
+curl http://localhost:3000/metrics
+```
 
 ## Development Commands
 
@@ -101,6 +104,8 @@ make install      # Install dependencies
 make shell        # Enter Poetry shell
 make test         # Run test suite
 make lint         # Run linters & pre-commit
-make dvc-repro    # Re-run full DVC pipeline
-````
+make pipeline     # Re-run full DVC pipeline
+make serve        # Start FastAPI server locally (port 3000)
+make api-test     # POST a sample image to /predict and print JSON
+```
 

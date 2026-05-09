@@ -3,9 +3,9 @@
 **Binary Image Classification MLOps System**  
 *Cat vs. Not-Cat* – Production-Ready, Fully Automated, Reproducible Pipeline
 
-**Version**: 1.2  
+**Version**: 1.3  
 **Last Updated**: 2026-05-09  
-**Status**: Phase 6 of 8 complete — CI/CD pipeline live on GitHub Actions
+**Status**: Phase 7 of 8 complete — FastAPI serving layer live
 
 ## 1. Project Overview
 
@@ -34,7 +34,7 @@ What starts as a simple notebook model will be transformed into a **complete MLO
 | 4     | Model training (PyTorch + Hydra + MLflow)        | ✅ Done   |
 | 5     | Experiment tracking (MLflow full integration)    | ✅ Done   |
 | 6     | CI/CD pipeline (GitHub Actions)                  | ✅ Done   |
-| 7     | Model serving (BentoML + FastAPI)                | Planned   |
+| 7     | Model serving (FastAPI + Prometheus)             | ✅ Done   |
 | 8     | Monitoring + drift detection                     | Planned   |
 
 ---
@@ -63,9 +63,9 @@ flowchart TD
     subgraph CICD["CI/CD ✅ Phase 6"]
         GH["GitHub Actions<br/>lint → test → dvc repro → artifacts → docker"]
     end
-    subgraph Serving["Serving — Phase 7"]
-        BENTO["BentoML<br/>ONNX / TorchScript"]
-        API["FastAPI<br/>/predict · /batch_predict<br/>/health · /metrics"]
+    subgraph Serving["Serving ✅ Phase 7"]
+        UTILS["model_utils.py<br/>load_model · build_inference_transform"]
+        API["FastAPI service.py<br/>/predict · /health · /metrics"]
     end
     subgraph Monitor["Monitoring — Phase 8"]
         EVIDENTLY["Evidently AI<br/>data drift"]
@@ -75,7 +75,7 @@ flowchart TD
     VAL --> SPLIT --> FEAT --> TRAIN
     HYDRA --> TRAIN
     DS --> TRAIN --> EVAL --> MLFLOW
-    MLFLOW --> GH --> BENTO --> API
+    MLFLOW --> GH --> UTILS --> API
     API --> EVIDENTLY --> PROM
     PROM -->|"drift alert → retrain"| RAW
 ```
@@ -213,10 +213,45 @@ features → train (depends on: train.py, evaluate.py, dataset.py, feature CSVs,
            outs:  models/best_model.pt, artifacts/
 ```
 
-### 5.4 Serving Layer (Phase 7 — planned)
-- **Packaging**: BentoML with ONNX export + TorchScript fallback
-- **API**: FastAPI (async) + Pydantic v2 validation
-- **Endpoints**: `/predict`, `/batch_predict`, `/health`, `/metrics`, `/drift-report`
+### 5.4 Serving Layer (Phase 7 — ✅ implemented)
+
+**model_utils.py** (`src/catops/serving/model_utils.py`)
+
+| Responsibility | Detail |
+|---|---|
+| `load_model()` | Builds ResNet50 architecture from `model_config.json`, loads state dict with `weights_only=True`; path overridable via `MODEL_PATH` env var |
+| `build_inference_transform()` | Reads resize target + normalization stats from `features_config.json` at runtime; path overridable via `FEATURES_CONFIG_PATH` env var |
+| Class mapping | `CLASS_NAMES = {0: "cat", 1: "not_cat"}` — matches `CatDataset` encoding |
+
+**service.py** (`src/catops/serving/service.py`)
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/health` | GET | Returns 200 if model is loaded, 503 otherwise |
+| `/predict` | POST (multipart) | Accepts image upload, returns `{label, confidence, is_cat}` |
+| `/metrics` | GET | Prometheus text format — HTTP instrumentation + custom metrics |
+
+| Security / robustness feature | Detail |
+|---|---|
+| File size limit | 10 MB max; reads MAX+1 bytes to detect without loading full file |
+| Decompression bomb guard | `Image.MAX_IMAGE_PIXELS = 4_000_000` (~2000×2000) |
+| Content-type pre-validation | 415 for non-image MIME types before any decode attempt |
+| Device handling | Input tensor moved to model device with `.to(device)` |
+
+| Prometheus metric | Type | Labels |
+|---|---|---|
+| `catops_predictions_total` | Counter | `label` (cat / not_cat) |
+| `catops_prediction_confidence` | Histogram | — (buckets 0.5–1.0) |
+| HTTP request metrics | Counter + Histogram | auto-instrumented via `prometheus-fastapi-instrumentator` |
+
+**Docker**
+
+| Setting | Value |
+|---|---|
+| Base image | `python:3.12-slim` |
+| User | `appuser` (uid 1001) — non-root |
+| Port | 3000 |
+| CMD | `uvicorn src.catops.serving.service:app --host 0.0.0.0 --port 3000 --workers 2 --access-log` |
 
 ### 5.5 CI/CD (Phase 6 — ✅ implemented)
 
@@ -249,8 +284,8 @@ features → train (depends on: train.py, evaluate.py, dataset.py, feature CSVs,
 | Training            | PyTorch 2 + TorchVision       | ✅ Active | ResNet50 transfer learning, split-aware CatDataset |
 | Evaluation          | scikit-learn + matplotlib + seaborn | ✅ Active | Full classification metrics + confusion matrix + ROC curve |
 | Experiment tracking | MLflow                        | ✅ Active | Run tracking, artifact logging, model promotion |
-| Serving             | BentoML + FastAPI             | Planned  | ONNX/TorchScript, easy scaling |
-| Containerisation    | Docker (multi-stage)          | Planned  | Security & minimal image size |
+| Serving             | FastAPI + Prometheus          | ✅ Active | Async inference, Prometheus metrics, non-root Docker |
+| Containerisation    | Docker                        | ✅ Active | Non-root user, uvicorn multi-worker CMD |
 | CI/CD               | GitHub Actions                | ✅ Active | quality → pipeline → docker jobs; DagsHub DVC remote |
 | Monitoring          | Evidently AI + Prometheus     | Planned  | Drift detection + alerting |
 | Cloud (optional)    | AWS / GCP (S3 + GPU runners)  | Planned  | Scalability |
@@ -274,7 +309,9 @@ purr-duction-pipeline/
 │       │   └── train.py           # Phases 4–5: ResNet50 + CatDataset + real eval + MLflow
 │       ├── evaluation/
 │       │   └── evaluate.py        # Phase 5: sklearn metrics + confusion matrix + ROC curve
-│       ├── serving/               # Phase 7: BentoML + FastAPI
+│       ├── serving/               # Phase 7: FastAPI service
+│       │   ├── model_utils.py     # load_model + build_inference_transform
+│       │   └── service.py         # FastAPI app: /predict /health /metrics
 │       ├── utils/                 # shared logging, config, etc.
 │       └── __init__.py
 ├── configs/                      # Hydra configs (data, model, training)
