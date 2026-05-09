@@ -1,5 +1,7 @@
 [core]
     autostage = true
-    remote = local
+    remote = dagshub
 ['remote "local"']
     url = ../dvc-remote-storage
+['remote "dagshub"']
+    url = https://dagshub.com/afonsocosta90/purr-duction-pipeline.dvc

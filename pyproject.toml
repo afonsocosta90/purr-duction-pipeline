@@ -45,9 +45,6 @@ name = "pytorch"
 url = "https://download.pytorch.org/whl/cpu"
 priority = "explicit"
 
-[tool.poetry.dependencies]
-torch = {version = ">=2.0.0,<3.0.0", source = "pytorch"}
-torchvision = {version = ">=0.15.0,<1.0.0", source = "pytorch"}
 
 [tool.poetry]
 package-mode = false

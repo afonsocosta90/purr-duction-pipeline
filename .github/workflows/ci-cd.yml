@@ -21,7 +21,9 @@ jobs:
           version: 2.4.0
 
       - name: Install dependencies
-        run: poetry install --no-root
+        run: |
+          poetry install --no-root
+          poetry run pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
       - name: Run linters & formatters
         run: poetry run make lint
@@ -43,7 +45,9 @@ jobs:
           version: 2.4.0
 
       - name: Install dependencies
-        run: poetry install --no-root
+        run: |
+          poetry install --no-root
+          poetry run pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
       - name: Configure DVC remote
         run: |
