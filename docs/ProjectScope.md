@@ -15,9 +15,9 @@
 | 3     | Feature Engineering & Split       | Hydra configs + stratified 70/15/15 split | ✅ Done | Locked-in, leak-free data contract for all training runs. |
 | 4     | Model Training & Promotion        | PyTorch ResNet50 + MLflow + automated promotion | ✅ Done | Training is automated. Only models beating accuracy + F1 thresholds are promoted. |
 | 5     | Experiment Tracking               | MLflow full integration + real evaluation | ✅ Done | Real per-split metrics, artifact logging (confusion matrix, ROC curve), and promotion governed by actual val performance. |
-| 6     | Pipeline Orchestration            | Prefect (DAGs)                        | Planned | Turns scripts into reliable, scheduled workflows. |
+| 6     | CI/CD Pipeline                    | GitHub Actions                        | Planned | Automated lint → test → train → promote → deploy on every push. |
 | 7     | Model Serving & API               | FastAPI + ONNX                        | Planned | Production web service with confidence scores. |
-| 8     | CI/CD, Docker & Monitoring        | GitHub Actions + Evidently            | Planned | Full automation and drift detection in production. |
+| 8     | Monitoring & Drift Detection      | Evidently AI + Prometheus + Grafana   | Planned | Full observability and automated retraining triggers. |
 
 
 

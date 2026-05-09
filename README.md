@@ -24,7 +24,6 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 - Fully reproducible pipeline via `dvc repro`
 - Pre-commit hooks, `.dvcignore`, and best-practice Git workflow
 - Docker-ready environment (`docker/`, `.dockerignore`)
-- GitHub Actions workflow foundation (`.github/workflows/`)
 
 **Next Phase (6/8):** CI/CD pipeline (GitHub Actions)
 
@@ -64,7 +63,7 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 | Data Validation | Custom production quality gates | ✅ Complete |
 | Code Quality | pre-commit hooks | ✅ Complete |
 | Containerization | Docker | ✅ Ready |
-| CI/CD | GitHub Actions | ✅ Skeleton |
+| CI/CD | GitHub Actions | ⏳ Phase 6 |
 | Config Management | Hydra | ✅ Phase 3 |
 | Training | PyTorch (ResNet50) | ✅ Phase 4 |
 | Evaluation | scikit-learn + matplotlib + seaborn | ✅ Phase 5 |
