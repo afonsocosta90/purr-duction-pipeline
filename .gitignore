@@ -34,6 +34,7 @@ data/external/
 models/
 outputs/
 checkpoints/
+artifacts/
 
 # === Experiment tracking & logs ===
 mlruns/
