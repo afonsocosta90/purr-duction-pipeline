@@ -10,6 +10,7 @@ import pandas as pd
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def create_metadata_if_missing(processed_dir: str = "data/processed") -> Path:
     """Scan folder and create metadata.csv if missing."""
     processed_path = Path(processed_dir)
@@ -28,17 +29,22 @@ def create_metadata_if_missing(processed_dir: str = "data/processed") -> Path:
             continue
         for img_path in label_path.glob("**/*.*"):
             if img_path.suffix.lower() in {".jpg", ".jpeg", ".png"}:
-                data.append({
-                    "image_path": str(img_path.relative_to(processed_path)),
-                    "label": label_dir,
-                    "file_size": img_path.stat().st_size
-                })
+                data.append(
+                    {
+                        "image_path": str(img_path.relative_to(processed_path)),
+                        "label": label_dir,
+                        "file_size": img_path.stat().st_size,
+                    }
+                )
 
     df = pd.DataFrame(data)
     df.to_csv(metadata_path, index=False)
-    logger.info(f"✅ Created metadata.csv with {len(df):,} images "
-                f"({df['label'].value_counts().to_dict()})")
+    logger.info(
+        f"✅ Created metadata.csv with {len(df):,} images "
+        f"({df['label'].value_counts().to_dict()})"
+    )
     return metadata_path
+
 
 def validate_processed_data(processed_dir: str = "data/processed") -> None:
     """Run quality gates and raise if any fail."""
@@ -72,13 +78,15 @@ def validate_processed_data(processed_dir: str = "data/processed") -> None:
         for err in errors:
             logger.error(f"❌ {err}")
         raise RuntimeError("❌ Data validation FAILED — pipeline halted")
-    
+
     logger.info("✅ DATA VALIDATION PASSED — both classes present and healthy")
     logger.info(f"   Class distribution: {class_counts.to_dict()}")
+
 
 def validate_features(processed_dir: str = "data/processed") -> None:
     """Post-split validation gates (Phase 3)."""
     from pathlib import Path
+
     meta = Path(processed_dir) / "metadata.csv"
     train = Path(processed_dir) / "train.csv"
     val = Path(processed_dir) / "val.csv"
@@ -97,11 +105,15 @@ def validate_features(processed_dir: str = "data/processed") -> None:
     errors = []
     for name, df in [("train", df_train), ("val", df_val), ("test", df_test)]:
         split_prop = df["label"].value_counts(normalize=True)
-        if not all(abs(split_prop.get(k, 0) - orig_prop.get(k, 0)) < 0.02 for k in orig_prop.index):
+        if not all(
+            abs(split_prop.get(k, 0) - orig_prop.get(k, 0)) < 0.02
+            for k in orig_prop.index
+        ):
             errors.append(f"Class drift in {name}")
     if errors:
         raise RuntimeError("❌ Feature validation FAILED: " + "; ".join(errors))
     logger.info("✅ FEATURE VALIDATION PASSED – splits stratified and leak-free")
+
 
 if __name__ == "__main__":
     validate_processed_data()

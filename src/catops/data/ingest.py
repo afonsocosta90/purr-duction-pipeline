@@ -14,6 +14,7 @@ from tqdm import tqdm
 RAW_DIR = Path("data/raw")
 PROCESSED_DIR = Path("data/processed")
 
+
 def extract_dataset() -> None:
     """Extract the tar.gz if not already done."""
     tar_path = RAW_DIR / "images.tar.gz"
@@ -30,6 +31,7 @@ def extract_dataset() -> None:
         print("✅ Extraction complete")
     else:
         print("✅ Images already extracted")
+
 
 def organize_for_binary_classification() -> None:
     """Organize images into cat / not_cat folders."""

@@ -30,14 +30,16 @@ def train(cfg: DictConfig) -> None:
     torch.manual_seed(cfg.training.seed)
 
     # Transforms
-    transform = transforms.Compose([
-        transforms.Resize(tuple(features_config["resize"]["target_size"])),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=features_config["normalization"]["mean"],
-            std=features_config["normalization"]["std"],
-        ),
-    ])
+    transform = transforms.Compose(
+        [
+            transforms.Resize(tuple(features_config["resize"]["target_size"])),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=features_config["normalization"]["mean"],
+                std=features_config["normalization"]["std"],
+            ),
+        ]
+    )
 
     # Train loader
     train_dataset = CatDataset(
@@ -71,14 +73,16 @@ def train(cfg: DictConfig) -> None:
     # MLflow
     mlflow.set_experiment("am-i-a-cat")
     with mlflow.start_run(run_name=f"resnet50-seed-{cfg.training.seed}"):
-        mlflow.log_params({
-            "model": cfg.model.name,
-            "epochs": cfg.training.epochs,
-            "batch_size": cfg.training.batch_size,
-            "lr": cfg.training.learning_rate,
-            "train_samples": len(train_dataset),
-            "device": str(device),
-        })
+        mlflow.log_params(
+            {
+                "model": cfg.model.name,
+                "epochs": cfg.training.epochs,
+                "batch_size": cfg.training.batch_size,
+                "lr": cfg.training.learning_rate,
+                "train_samples": len(train_dataset),
+                "device": str(device),
+            }
+        )
 
         print(f"🚀 Training on {device} for {cfg.training.epochs} epochs...")
 
@@ -102,17 +106,21 @@ def train(cfg: DictConfig) -> None:
         val_metrics = evaluate_model(model, cfg, processed_dir, split="val")
 
         # Log final metrics
-        mlflow.log_metrics({
-            "val_accuracy": val_metrics["accuracy"],
-            "val_f1": val_metrics["f1"],
-            "val_precision": val_metrics["precision"],
-            "val_recall": val_metrics["recall"],
-            "val_roc_auc": val_metrics["roc_auc"],
-        })
+        mlflow.log_metrics(
+            {
+                "val_accuracy": val_metrics["accuracy"],
+                "val_f1": val_metrics["f1"],
+                "val_precision": val_metrics["precision"],
+                "val_recall": val_metrics["recall"],
+                "val_roc_auc": val_metrics["roc_auc"],
+            }
+        )
 
         # === AUTOMATED PROMOTION BASED ON REAL VAL METRICS ===
-        if (val_metrics["accuracy"] >= cfg.training.promotion.min_accuracy and
-            val_metrics["f1"] >= cfg.training.promotion.min_f1):
+        if (
+            val_metrics["accuracy"] >= cfg.training.promotion.min_accuracy
+            and val_metrics["f1"] >= cfg.training.promotion.min_f1
+        ):
             mlflow.pytorch.log_model(model, "model")
             print("🎉 MODEL PROMOTED TO STAGING – REAL thresholds met!")
             mlflow.set_tag("stage", "staging")
@@ -126,6 +134,7 @@ def train(cfg: DictConfig) -> None:
         print("💾 Model saved locally as models/best_model.pt")
 
         print("✅ Training + Evaluation completed & fully logged to MLflow.")
+
 
 if __name__ == "__main__":
     train()
