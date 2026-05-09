@@ -5,7 +5,7 @@ Ensures no data leakage and full DVC reproducibility.
 """
 
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import pandas as pd
 import torch

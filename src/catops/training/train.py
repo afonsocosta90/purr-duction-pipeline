@@ -70,7 +70,7 @@ def train(cfg: DictConfig) -> None:
 
     # MLflow
     mlflow.set_experiment("am-i-a-cat")
-    with mlflow.start_run(run_name=f"resnet50-seed-{cfg.training.seed}") as run:
+    with mlflow.start_run(run_name=f"resnet50-seed-{cfg.training.seed}"):
         mlflow.log_params({
             "model": cfg.model.name,
             "epochs": cfg.training.epochs,

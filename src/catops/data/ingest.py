@@ -56,7 +56,7 @@ def organize_for_binary_classification() -> None:
     cat_count = len(list(cat_dir.glob("*.jpg")))
     not_cat_count = len(list(not_cat_dir.glob("*.jpg")))
 
-    print(f"Dataset organized:")
+    print("Dataset organized:")
     print(f"   → {cat_count} cat images")
     print(f"   → {not_cat_count} not_cat images")
     print(f"   → Total: {cat_count + not_cat_count} images")
