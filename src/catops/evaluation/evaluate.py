@@ -1,5 +1,4 @@
 """Production-grade evaluation module for "Am I a Cat?" pipeline.
-
 - Loads model + val/test CSVs via CatDataset
 - Computes full classification metrics using sklearn
 - Generates and logs confusion matrix + ROC curve as MLflow artifacts
@@ -12,9 +11,9 @@ from typing import Dict
 
 import matplotlib.pyplot as plt
 import mlflow
-import pandas as pd
 import seaborn as sns
 import torch
+from omegaconf import DictConfig
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -25,57 +24,57 @@ from sklearn.metrics import (
     roc_curve,
 )
 from torch.utils.data import DataLoader
+from torchvision import transforms
 
 from src.catops.data.dataset import CatDataset
 
 
 def evaluate_model(
     model: torch.nn.Module,
-    cfg: "DictConfig",
+    cfg: DictConfig,
     processed_dir: Path = Path("data/processed"),
     split: str = "val",
 ) -> Dict[str, float]:
     """Evaluate model on specified split and log artifacts to MLflow."""
-
     features_config = json.loads((processed_dir / "features_config.json").read_text())
 
-    # Same transforms as training
-    transform = torch.nn.Sequential(
-        torch.nn.Resize(tuple(features_config["resize"]["target_size"])),
-        torch.nn.ToTensor(),
-        torch.nn.Normalize(
+    # === FIXED: Correct torchvision transforms ===
+    transform = transforms.Compose([
+        transforms.Resize(tuple(features_config["resize"]["target_size"])),
+        transforms.ToTensor(),
+        transforms.Normalize(
             mean=features_config["normalization"]["mean"],
             std=features_config["normalization"]["std"],
         ),
-    )  # Note: torchvision.transforms not needed here; we use functional for simplicity
+    ])
 
     # Load dataset for the split
     csv_path = processed_dir / f"{split}.csv"
-    dataset = CatDataset(csv_path=csv_path, transform=None, processed_dir=processed_dir)
+    dataset = CatDataset(
+        csv_path=csv_path,
+        transform=transform,          # Pass transform directly (more efficient)
+        processed_dir=processed_dir
+    )
     loader = DataLoader(
         dataset,
         batch_size=cfg.training.batch_size,
         shuffle=False,
         num_workers=4,
-        pin_memory=torch.cuda.is_available(),
+        pin_memory=torch.backends.mps.is_available() or torch.cuda.is_available(),
     )
 
     device = next(model.parameters()).device
     model.eval()
-
     all_preds = []
     all_labels = []
     all_probs = []
 
     with torch.no_grad():
         for inputs, labels in loader:
-            # Apply transform here (since CatDataset transform=None for eval flexibility)
-            inputs = transform(inputs) if hasattr(transform, "__call__") else inputs
             inputs = inputs.to(device)
             labels = labels.to(device)
-
             outputs = model(inputs)
-            probs = torch.softmax(outputs, dim=1)[:, 1]  # probability of "not_cat" (class 1)
+            probs = torch.softmax(outputs, dim=1)[:, 1]   # prob of "not_cat" (class 1)
             preds = torch.argmax(outputs, dim=1)
 
             all_preds.extend(preds.cpu().numpy())
@@ -101,7 +100,9 @@ def evaluate_model(
     # Confusion Matrix artifact
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["cat", "not_cat"], yticklabels=["cat", "not_cat"])
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+                xticklabels=["cat", "not_cat"],
+                yticklabels=["cat", "not_cat"])
     plt.ylabel("True Label")
     plt.xlabel("Predicted Label")
     plt.title(f"Confusion Matrix - {split.upper()} Split")
@@ -125,10 +126,14 @@ def evaluate_model(
     plt.close()
     mlflow.log_artifact(str(roc_path), artifact_path="evaluation")
 
-    print(f"✅ {split.upper()} evaluation complete → Accuracy: {metrics['accuracy']:.4f} | F1: {metrics['f1']:.4f}")
+    print(f"✅ {split.upper()} evaluation complete → "
+          f"Accuracy: {metrics['accuracy']:.4f} | "
+          f"F1: {metrics['f1']:.4f} | "
+          f"ROC-AUC: {metrics['roc_auc']:.4f}")
+
     return metrics
 
 
 # For standalone testing
 if __name__ == "__main__":
-    print("Evaluation module ready for import from train.py")
+    print("✅ Evaluation module ready for import from train.py")
