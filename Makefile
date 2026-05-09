@@ -12,8 +12,9 @@ shell: ## Enter Poetry shell (Poetry 2.0+)
 test: ## Run test suite
 	poetry run pytest
 
-lint: ## Run linters & pre-commit
-	poetry run pre-commit run --all-files
+lint: ## Run linters
+	poetry run ruff check .
+	poetry run black --check .
 
 pipeline: ## Run full DVC pipeline
 	PREFECT_UI_ENABLED=false poetry run dvc repro --force
