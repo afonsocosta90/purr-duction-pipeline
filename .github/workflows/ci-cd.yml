@@ -5,6 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   quality:
@@ -44,6 +45,13 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-root
 
+      - name: Configure DVC remote
+        run: |
+          poetry run dvc remote add -d dagshub https://dagshub.com/afonsocosta90/purr-duction-pipeline.dvc
+          poetry run dvc remote modify dagshub auth basic
+          poetry run dvc remote modify dagshub user ${{ secrets.DAGSHUB_USER }}
+          poetry run dvc remote modify dagshub password ${{ secrets.DAGSHUB_TOKEN }}
+
       - name: Pull DVC data
         run: poetry run dvc pull
 
@@ -65,7 +73,7 @@ jobs:
   docker:
     needs: pipeline
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
