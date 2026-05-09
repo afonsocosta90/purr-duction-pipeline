@@ -3,8 +3,11 @@
 install: ## Install dependencies
 	poetry install
 
-shell: ## Enter Poetry shell
-	poetry shell
+shell: ## Enter Poetry shell (Poetry 2.0+)
+	@echo "=== Poetry 2.0 shell ==="
+	@echo "Run this command manually:"
+	@echo "   poetry self add poetry-plugin-shell && poetry shell"
+	@echo "Or just use 'poetry run <command>' for everything"
 
 test: ## Run test suite
 	poetry run pytest
