@@ -27,3 +27,9 @@ train: ## Run training stage only
 
 dvc-push: ## Push DVC artifacts to remote
 	poetry run dvc push
+
+serve: ## Start production FastAPI server locally
+	poetry run python -m src.catops.serving.service
+
+api-test: ## Quick test of the API (uses a sample cat image)
+	curl -X POST "http://127.0.0.1:3000/predict" -F "file=@data/processed/cat/Abyssinian_1.jpg" | jq
