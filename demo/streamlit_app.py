@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import csv
 import io
-import json
 import os
 import subprocess
 import sys
@@ -100,17 +99,18 @@ st.markdown(
 # Session state initialisation
 # ---------------------------------------------------------------------------
 
+
 def _init_state() -> None:
     defaults: dict = {
-        "last_prediction": None,   # dict: {label, confidence, is_cat}
+        "last_prediction": None,  # dict: {label, confidence, is_cat}
         "last_image_bytes": None,  # bytes of the last uploaded image
         "feedback_submitted": False,
         "drift_injected": False,
         "drift_log": "",
         "retrain_log": "",
         "retrain_done": False,
-        "before_metrics": None,    # dict captured before retraining
-        "after_metrics": None,     # dict captured after retraining
+        "before_metrics": None,  # dict captured before retraining
+        "after_metrics": None,  # dict captured after retraining
         "prediction_history": [],  # list[dict] for the history table
     }
     for key, val in defaults.items():
@@ -124,6 +124,7 @@ _init_state()
 # ---------------------------------------------------------------------------
 # Helper utilities
 # ---------------------------------------------------------------------------
+
 
 def _api_health() -> tuple[bool, str]:
     """Return (is_healthy, status_message)."""
@@ -149,7 +150,9 @@ def _predict(image_bytes: bytes, filename: str) -> dict:
     return response.json()
 
 
-def _save_feedback(image_filename: str, predicted_label: str, correct_label: str) -> None:
+def _save_feedback(
+    image_filename: str, predicted_label: str, correct_label: str
+) -> None:
     """Append one row to monitoring/feedback_log.csv."""
     FEEDBACK_LOG.parent.mkdir(parents=True, exist_ok=True)
     write_header = not FEEDBACK_LOG.exists()
@@ -362,7 +365,9 @@ with tab_predict:
             st.image(pil_img, caption=uploaded_file.name, use_container_width=True)
 
             if not healthy:
-                st.error("API is offline. Start the API with `make serve` or `make demo`.")
+                st.error(
+                    "API is offline. Start the API with `make serve` or `make demo`."
+                )
             else:
                 with st.spinner("Classifying image…"):
                     try:
@@ -378,7 +383,9 @@ with tab_predict:
                             }
                         )
                     except httpx.HTTPStatusError as exc:
-                        st.error(f"API error {exc.response.status_code}: {exc.response.text}")
+                        st.error(
+                            f"API error {exc.response.status_code}: {exc.response.text}"
+                        )
                         st.session_state.last_prediction = None
                     except Exception as exc:
                         st.error(f"Prediction failed: {exc}")
@@ -475,14 +482,12 @@ with tab_pipeline:
     st.subheader("Step 1 — Inject Synthetic Drift")
     col_drift_info, col_drift_btn = st.columns([3, 1])
     with col_drift_info:
-        st.markdown(
-            """
+        st.markdown("""
             Sends **out-of-distribution images** (random noise, solid colours, blur) to the
             `/predict` API endpoint, simulating production traffic that diverges from the
             training distribution. The inference log (`monitoring/inference_log.csv`) is also
             populated with synthetic entries for Evidently AI drift analysis.
-            """
-        )
+            """)
         drift_count = st.number_input(
             "Number of synthetic images", min_value=10, max_value=500, value=50, step=10
         )
@@ -505,7 +510,9 @@ with tab_pipeline:
 
     if inject_btn:
         if not healthy:
-            st.error("API must be running to inject drift. Start with `make serve` or `make demo`.")
+            st.error(
+                "API must be running to inject drift. Start with `make serve` or `make demo`."
+            )
         else:
             st.session_state.drift_log = ""
             cmd = [
@@ -527,7 +534,9 @@ with tab_pipeline:
                     f"✅ Drift injection complete — {drift_count} synthetic requests sent."
                 )
             else:
-                st.error(f"Drift injection failed (exit code {rc}). Check the log above.")
+                st.error(
+                    f"Drift injection failed (exit code {rc}). Check the log above."
+                )
 
     # -----------------------------------------------------------------------
     # Step 2 — Trigger Retraining
@@ -536,18 +545,18 @@ with tab_pipeline:
     st.subheader("Step 2 — Trigger Retraining")
 
     if not st.session_state.drift_injected:
-        st.info("💡 Inject synthetic drift first (Step 1) to simulate a degraded model scenario.")
+        st.info(
+            "💡 Inject synthetic drift first (Step 1) to simulate a degraded model scenario."
+        )
 
     col_retrain_info, col_retrain_btn = st.columns([3, 1])
     with col_retrain_info:
-        st.markdown(
-            """
+        st.markdown("""
             Runs `dvc repro --force` against the full pipeline:
             **ingest → validate → features → train → evaluate**.
             Model promotion requires `val_accuracy ≥ 0.94` **and** `val_f1 ≥ 0.93`.
             Live output is streamed below.
-            """
-        )
+            """)
     with col_retrain_btn:
         st.write("")
         st.write("")
@@ -593,7 +602,13 @@ with tab_pipeline:
         before = st.session_state.before_metrics or {}
         after = st.session_state.after_metrics or {}
 
-        key_metrics = ["val_accuracy", "val_f1", "val_precision", "val_recall", "val_roc_auc"]
+        key_metrics = [
+            "val_accuracy",
+            "val_f1",
+            "val_precision",
+            "val_recall",
+            "val_roc_auc",
+        ]
         thresholds = {"val_accuracy": 0.94, "val_f1": 0.93}
 
         col_b, col_a = st.columns(2)
@@ -602,7 +617,10 @@ with tab_pipeline:
             for k in key_metrics:
                 v = before.get(k)
                 disp = f"{v:.4f}" if v is not None else "—"
-                st.markdown(f'<div class="metric-box">{k}: <b>{disp}</b></div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div class="metric-box">{k}: <b>{disp}</b></div>',
+                    unsafe_allow_html=True,
+                )
 
         with col_a:
             st.markdown("**After retraining**")
@@ -626,14 +644,19 @@ with tab_pipeline:
 
         # Promotion verdict
         promoted = (
-            after.get("val_accuracy", 0) >= 0.94
-            and after.get("val_f1", 0) >= 0.93
-        ) if after else False
+            (after.get("val_accuracy", 0) >= 0.94 and after.get("val_f1", 0) >= 0.93)
+            if after
+            else False
+        )
         if after:
             if promoted:
-                st.success("🏆 **Model PROMOTED to staging** — accuracy ≥ 0.94 AND F1 ≥ 0.93")
+                st.success(
+                    "🏆 **Model PROMOTED to staging** — accuracy ≥ 0.94 AND F1 ≥ 0.93"
+                )
             else:
-                st.error("⛔ Model **did not pass** promotion gates — check metrics above")
+                st.error(
+                    "⛔ Model **did not pass** promotion gates — check metrics above"
+                )
 
 
 # ===========================================================================
@@ -686,7 +709,9 @@ with tab_monitor:
             go.Bar(
                 x=label_df["Label"],
                 y=label_df["Count"],
-                marker_color=[LABEL_COLOR.get(l, "#1976D2") for l in label_df["Label"]],
+                marker_color=[
+                    LABEL_COLOR.get(lbl, "#1976D2") for lbl in label_df["Label"]
+                ],
                 text=label_df["Count"],
                 textposition="outside",
             )
@@ -696,7 +721,9 @@ with tab_monitor:
             margin=dict(t=20, b=20, l=20, r=20),
             showlegend=False,
         )
-        st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(
+            fig_bar, use_container_width=True, config={"displayModeBar": False}
+        )
 
     # --- Recent inference log rows ---
     st.subheader("Recent Inference Log Entries")
@@ -720,13 +747,14 @@ with tab_monitor:
             f"({mismatch_fb/total_fb:.0%} error rate)"
         )
     else:
-        st.info("No feedback submitted yet. Use the **Live Prediction** tab to submit corrections.")
+        st.info(
+            "No feedback submitted yet. Use the **Live Prediction** tab to submit corrections."
+        )
 
     # --- Grafana embed (best-effort) ---
     st.divider()
     st.subheader("Grafana Dashboard")
-    st.markdown(
-        f"""
+    st.markdown(f"""
         The Grafana dashboard at **{grafana_url}** shows live Prometheus metrics:
         - `catops_predictions_total` — prediction counter by label
         - `catops_prediction_confidence` — confidence score histogram
@@ -736,8 +764,7 @@ with tab_monitor:
 
         > 💡 Start the full monitoring stack with `make demo` — this launches
         > FastAPI + Streamlit + Prometheus + Grafana in one command.
-        """
-    )
+        """)
 
 
 # ---------------------------------------------------------------------------

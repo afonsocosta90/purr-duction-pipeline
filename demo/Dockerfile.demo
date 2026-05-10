@@ -13,7 +13,7 @@ FROM catops-api:demo
 # Switch to root briefly to install the extra packages into the existing venv
 USER root
 
-RUN /opt/venv/bin/pip install --no-cache-dir \
+RUN pip install --no-cache-dir \
     streamlit==1.45.0 \
     httpx==0.28.1 \
     plotly==6.1.1
@@ -26,7 +26,7 @@ EXPOSE 8501
 ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 ENV STREAMLIT_SERVER_HEADLESS=true
 
-CMD ["/opt/venv/bin/streamlit", "run", "demo/streamlit_app.py", \
+CMD ["streamlit", "run", "demo/streamlit_app.py", \
      "--server.port=8501", \
      "--server.address=0.0.0.0", \
      "--server.enableCORS=false", \

@@ -2,9 +2,16 @@
 # The API reads these from the bind-mounted host volume at runtime.
 data/
 mlruns/
+mlflow.db
 outputs/
 artifacts/
 models/
+dvc-remote-storage/
+
+# DVC pipeline files — irrelevant for inference/serving
+dvc.yaml
+dvc.lock
+.dvcignore
 
 # Dev/tooling noise
 .git/
@@ -19,8 +26,17 @@ __pycache__/
 htmlcov/
 .coverage
 
-# Notebooks (outputs can be large)
+# Notebooks, demo, docs, tests — not needed in production image
 notebooks/
+demo/
+docs/
+tests/
+pipelines/
+monitoring/
+
+# Tooling / project docs
+Makefile
+*.md
 
 # Local secrets / IDE
 .env

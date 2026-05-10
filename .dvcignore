@@ -2,12 +2,12 @@
 # the performance. Learn more at
 # https://dvc.org/doc/user-guide/dvcignore
 
-# Hydra run outputs
-outputs/
-
-# MLflow tracking
+# MLflow tracking (generated at training time, not a DVC artifact)
 mlruns/
 mlflow.db
+
+# Virtual environment
+.venv/
 
 # Python bytecode
 **/__pycache__

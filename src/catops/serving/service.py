@@ -68,7 +68,9 @@ async def lifespan(app: FastAPI):
         try:
             data = json.loads(_DRIFT_SCORE_PATH.read_text())
             _DRIFT_SCORE.set(data["score"])
-            logger.info("Restored drift score=%.4f from %s", data["score"], _DRIFT_SCORE_PATH)
+            logger.info(
+                "Restored drift score=%.4f from %s", data["score"], _DRIFT_SCORE_PATH
+            )
         except Exception:
             logger.warning("Could not read drift_score.json — gauge stays at -1")
 

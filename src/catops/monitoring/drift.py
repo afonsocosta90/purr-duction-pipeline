@@ -49,11 +49,17 @@ MIN_SAMPLES = int(os.getenv("DRIFT_MIN_SAMPLES", "50"))
 
 def _load_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
     if not BASELINE_PATH.exists():
-        logger.error("Baseline not found at %s — run 'make compute-baseline' first", BASELINE_PATH)
+        logger.error(
+            "Baseline not found at %s — run 'make compute-baseline' first",
+            BASELINE_PATH,
+        )
         sys.exit(1)
 
     if not LOG_PATH.exists():
-        logger.error("Inference log not found at %s — no predictions have been logged yet", LOG_PATH)
+        logger.error(
+            "Inference log not found at %s — no predictions have been logged yet",
+            LOG_PATH,
+        )
         sys.exit(1)
 
     baseline = pd.read_csv(BASELINE_PATH)
@@ -68,7 +74,9 @@ def _load_dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
         sys.exit(1)
 
     recent = inference.tail(WINDOW_SIZE)
-    logger.info("Baseline: %d rows · Inference window: %d rows", len(baseline), len(recent))
+    logger.info(
+        "Baseline: %d rows · Inference window: %d rows", len(baseline), len(recent)
+    )
     return baseline, recent
 
 
@@ -86,7 +94,9 @@ def _run_evidently(baseline: pd.DataFrame, current: pd.DataFrame) -> tuple[float
     # DataDriftPreset puts DatasetDriftMetric first
     dataset_result = result["metrics"][0]["result"]
     drift_share: float = dataset_result.get("share_of_drifted_columns", 0.0)
-    drift_detected: bool = dataset_result.get("dataset_drift", drift_share >= DRIFT_THRESHOLD)
+    drift_detected: bool = dataset_result.get(
+        "dataset_drift", drift_share >= DRIFT_THRESHOLD
+    )
     return drift_share, drift_detected
 
 

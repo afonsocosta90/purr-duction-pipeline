@@ -134,7 +134,9 @@ def _pixel_stats(img: Image.Image) -> dict:
     }
 
 
-def _append_log_row(log_path: Path, img_bytes: bytes, label: str, confidence: float) -> None:
+def _append_log_row(
+    log_path: Path, img_bytes: bytes, label: str, confidence: float
+) -> None:
     """Write one row to the inference log CSV (GDPR-safe — no raw image stored)."""
     log_path.parent.mkdir(parents=True, exist_ok=True)
     write_header = not log_path.exists()
@@ -161,6 +163,7 @@ def _append_log_row(log_path: Path, img_bytes: bytes, label: str, confidence: fl
 # ---------------------------------------------------------------------------
 # Core injection loop
 # ---------------------------------------------------------------------------
+
 
 def _pil_to_bytes(img: Image.Image) -> bytes:
     """Encode PIL image to JPEG bytes in memory."""
@@ -209,7 +212,13 @@ def run_injection(
                 # 1. Send to API
                 response = client.post(
                     f"{api_url}/predict",
-                    files={"file": (f"synthetic_{img_type}_{i:04d}.jpg", img_bytes, "image/jpeg")},
+                    files={
+                        "file": (
+                            f"synthetic_{img_type}_{i:04d}.jpg",
+                            img_bytes,
+                            "image/jpeg",
+                        )
+                    },
                 )
                 response.raise_for_status()
                 result = response.json()
@@ -262,20 +271,27 @@ def run_injection(
 # CLI entry point
 # ---------------------------------------------------------------------------
 
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Inject synthetic OOD images into the Am I a Cat? API to simulate drift.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--count", type=int, default=50, help="Number of synthetic images")
-    parser.add_argument("--api-url", default="http://localhost:3000", help="FastAPI base URL")
+    parser.add_argument(
+        "--count", type=int, default=50, help="Number of synthetic images"
+    )
+    parser.add_argument(
+        "--api-url", default="http://localhost:3000", help="FastAPI base URL"
+    )
     parser.add_argument(
         "--output-log",
         default="monitoring/inference_log.csv",
         help="Path to inference_log.csv",
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--quiet", action="store_true", help="Suppress per-image log lines")
+    parser.add_argument(
+        "--quiet", action="store_true", help="Suppress per-image log lines"
+    )
     parser.add_argument(
         "--source-dir",
         default=None,

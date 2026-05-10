@@ -28,7 +28,6 @@ data/processed/
 data/interim/
 data/external/
 !data/*.dvc
-!data/external/.gitignore
 
 # === Model artifacts & outputs ===
 models/
