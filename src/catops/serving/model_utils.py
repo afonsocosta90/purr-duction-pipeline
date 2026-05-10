@@ -29,14 +29,16 @@ def build_inference_transform(
     transform stays in sync if the features stage changes them.
     """
     cfg = json.loads(Path(features_config_path).read_text())
-    return transforms.Compose([
-        transforms.Resize(tuple(cfg["resize"]["target_size"])),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=cfg["normalization"]["mean"],
-            std=cfg["normalization"]["std"],
-        ),
-    ])
+    return transforms.Compose(
+        [
+            transforms.Resize(tuple(cfg["resize"]["target_size"])),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=cfg["normalization"]["mean"],
+                std=cfg["normalization"]["std"],
+            ),
+        ]
+    )
 
 
 def load_model(

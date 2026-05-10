@@ -132,11 +132,14 @@ def train(cfg: DictConfig) -> None:
         models_dir.mkdir(exist_ok=True)
         torch.save(model.state_dict(), models_dir / "best_model.pt")
         (models_dir / "model_config.json").write_text(
-            json.dumps({"num_classes": cfg.model.num_classes, "dropout": cfg.model.dropout})
+            json.dumps(
+                {"num_classes": cfg.model.num_classes, "dropout": cfg.model.dropout}
+            )
         )
         print("💾 Model saved locally as models/best_model.pt")
 
         print("✅ Training + Evaluation completed & fully logged to MLflow.")
+
 
 if __name__ == "__main__":
     train()

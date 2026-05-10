@@ -15,14 +15,20 @@ from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
-from src.catops.serving.model_utils import CLASS_NAMES, build_inference_transform, load_model
+from src.catops.serving.model_utils import (
+    CLASS_NAMES,
+    build_inference_transform,
+    load_model,
+)
 
 logger = logging.getLogger(__name__)
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 Image.MAX_IMAGE_PIXELS = 4_000_000  # ~2000×2000; guards against decompression bombs
 
-ALLOWED_CONTENT_TYPES = frozenset({"image/jpeg", "image/png", "image/webp", "image/gif"})
+ALLOWED_CONTENT_TYPES = frozenset(
+    {"image/jpeg", "image/png", "image/webp", "image/gif"}
+)
 
 _state: dict[str, Any] = {}
 
@@ -114,11 +120,15 @@ async def predict(file: UploadFile = File(...)):
     latency_ms = (time.perf_counter() - t0) * 1000
     logger.info(
         "predict label=%s confidence=%.4f latency_ms=%.1f filename=%s",
-        result.label, result.confidence, latency_ms, file.filename or "<unnamed>",
+        result.label,
+        result.confidence,
+        latency_ms,
+        file.filename or "<unnamed>",
     )
     return result
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=3000)
