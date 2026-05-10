@@ -31,7 +31,7 @@ stages:
   train:
     cmd: >-
       python -m src.catops.training.train
-      $([ "${CI}" = "true" ] && echo "training.epochs=1" || echo "")
+      $$([ "$${CI}" = "true" ] && echo "training.epochs=1" || echo "")
     deps:
       - src/catops/training/train.py
       - configs/config.yaml
