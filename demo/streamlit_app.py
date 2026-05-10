@@ -709,8 +709,8 @@ with tab_predict:
 
             if not healthy:
                 st.markdown(
-                    f'<div class="warning-banner">⚠️ API is offline — start it with '
-                    f'<code>make serve</code> or <code>make demo</code></div>',
+                    '<div class="warning-banner">⚠️ API is offline — start it with '
+                    '<code>make serve</code> or <code>make demo</code></div>',
                     unsafe_allow_html=True,
                 )
             elif st.session_state.last_prediction is None:
@@ -1044,7 +1044,7 @@ with tab_pipeline:
         st.markdown("<hr>", unsafe_allow_html=True)
 
         st.markdown(
-            f"""
+            """
             <div class="step-header">
                 <div class="step-badge step-done">✓</div>
                 <div>
