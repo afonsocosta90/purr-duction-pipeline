@@ -3,9 +3,9 @@
 **Binary Image Classification MLOps System**  
 *Cat vs. Not-Cat* – Production-Ready, Fully Automated, Reproducible Pipeline
 
-**Version**: 1.6  
-**Last Updated**: 2026-05-10  
-**Status**: Phase 7 of 8 complete — FastAPI serving layer live · Phase 8 design finalised
+**Version**: 2.0  
+**Last Updated**: 2026-05-11  
+**Status**: All 9 phases complete — full closed-loop MLOps system with live demo stack
 
 ## 1. Project Overview
 
@@ -35,7 +35,8 @@ What starts as a simple notebook model will be transformed into a **complete MLO
 | 5     | Experiment tracking (MLflow full integration)    | ✅ Done   |
 | 6     | CI/CD pipeline (GitHub Actions)                  | ✅ Done   |
 | 7     | Model serving (FastAPI + Prometheus)             | ✅ Done   |
-| 8     | Monitoring + drift detection                     | Planned   |
+| 8     | Monitoring + drift detection                     | ✅ Done   |
+| 9     | Interactive demo & portfolio showcase            | ✅ Done   |
 
 ---
 
@@ -67,11 +68,16 @@ flowchart TD
         UTILS["model_utils.py<br/>load_model · build_inference_transform"]
         API["FastAPI service.py<br/>/predict · /health · /metrics"]
     end
-    subgraph Monitor["Monitoring — Phase 8"]
+    subgraph Monitor["Monitoring ✅ Phase 8"]
         LOG["inference_logger.py<br/>save image stats per request"]
         DRIFT["drift.py<br/>Evidently AI report"]
         PROM2["Prometheus + Grafana<br/>confidence · label dist · latency"]
         ALERT["alerts.py<br/>Slack / email on drift"]
+    end
+    subgraph Demo["Demo ✅ Phase 9"]
+        STREAMLIT["streamlit_app.py<br/>drag-and-drop predict · feedback"]
+        SIMDRIFT["simulate_drift.py<br/>synthetic drift injection"]
+        RETRAIN["pipeline control<br/>dvc repro streaming · before/after metrics"]
     end
     RAW --> INGEST --> PROC --> VAL
     VAL --> SPLIT --> FEAT --> TRAIN
@@ -82,6 +88,9 @@ flowchart TD
     LOG --> DRIFT --> ALERT
     PROM2 -->|"confidence drops"| ALERT
     ALERT -->|"human adds labelled data"| RAW
+    STREAMLIT -->|"POST /predict"| API
+    SIMDRIFT -->|"POST /predict (noise)"| API
+    RETRAIN -->|"dvc repro --force"| TRAIN
 ```
 
 ---
@@ -263,6 +272,41 @@ sequenceDiagram
     end
 ```
 
+### 4.7 Interactive Demo (Phase 9)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as Streamlit UI<br/>(demo/streamlit_app.py)
+    participant API as FastAPI :3000
+    participant Sim as simulate_drift.py
+    participant DVC as dvc repro --force
+    participant Prom as Prometheus :9090
+    participant Grafana as Grafana :3001
+
+    Note over UI,Grafana: `make demo` brings up all four services via docker-compose
+
+    User->>UI: upload image (Live Prediction tab)
+    UI->>API: POST /predict (multipart)
+    API-->>UI: {label, confidence, is_cat}
+    UI-->>User: prediction card + confidence gauge
+    User->>UI: submit correct label (feedback radio)
+    UI->>UI: append row to monitoring/feedback_log.csv
+
+    User->>UI: Pipeline Control tab → Inject Drift
+    UI->>Sim: spawn simulate_drift.py --count N
+    Sim->>API: POST /predict × N (random noise / gradient / solid-colour / blurred images)
+    API->>API: log pixel stats to monitoring/inference_log.csv
+
+    User->>UI: Retrain Model button
+    UI->>DVC: subprocess dvc repro --force (ingest → validate → features → train → evaluate)
+    DVC-->>UI: stdout streamed live in log box
+    UI-->>User: before/after metrics table + promotion verdict
+
+    Prom->>Grafana: scrape :3000/metrics (predictions_total · confidence · latency)
+    User->>Grafana: open :3001 → pre-provisioned CatOps dashboard
+```
+
 ---
 
 ## 5. Detailed Component Architecture
@@ -422,7 +466,7 @@ features → train (depends on: train.py, evaluate.py, dataset.py, feature CSVs,
 
 **Secrets required**: `DAGSHUB_USER`, `DAGSHUB_TOKEN` (DVC remote auth) · `SLACK_WEBHOOK_URL` (Phase 8 alerts).
 
-### 5.6 Monitoring & Drift Detection (Phase 8 — planned)
+### 5.6 Monitoring & Drift Detection (Phase 8 — ✅ implemented)
 
 **The core problem**: once the model is deployed, the images people send to `/predict` may gradually look different from the training data. The model silently degrades — confidence drops, misclassifications increase — with no visible signal unless you instrument it.
 
@@ -503,6 +547,47 @@ Alert fires
     → New model trained, evaluated, and promoted if it passes the promotion gate
 ```
 
+### 5.7 Interactive Demo Layer (Phase 9 — ✅ implemented)
+
+A single `make demo` command spins up the complete local demo stack via `demo/docker-compose.demo.yml`.
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| Streamlit UI | 8501 | Drag-and-drop prediction, feedback submission, pipeline control |
+| FastAPI | 3000 | Inference backend (same image as production) |
+| Grafana | 3001 | Pre-provisioned CatOps dashboard (admin / catops) |
+| Prometheus | 9090 | Metrics store scraped from API |
+
+**streamlit_app.py** (`demo/streamlit_app.py`)
+
+| Tab | Functionality |
+|-----|---------------|
+| Live Prediction | Upload any image → ResNet50 prediction card + confidence gauge; feedback radio saves to `monitoring/feedback_log.csv` |
+| Pipeline Control | Inject synthetic drift (random noise / gradient / solid-colour / blurred) and trigger `dvc repro --force` with live log streaming + before/after metrics comparison |
+| Monitoring | Live label distribution chart and rolling average confidence from `monitoring/inference_log.csv` |
+
+**simulate_drift.py** (`demo/simulate_drift.py`)
+
+Generates out-of-distribution images (random noise, gradient, solid-colour, blurred) and fires them at `/predict` to populate `monitoring/inference_log.csv` with drift signal for the Evidently AI report.
+
+**Grafana dashboard** (`demo/grafana/` + `demo/prometheus.yml`)
+
+Pre-provisioned *CatOps — Am I a Cat? Live Metrics* dashboard with:
+- Total prediction counter + per-label breakdown
+- Confidence gauge (avg) with red/yellow/green thresholds
+- Time-series: prediction volume, confidence trend, request latency percentiles (p50/p95/p99)
+- Label distribution bar chart + confidence histogram
+
+**Demo commands**
+
+| Command | Effect |
+|---------|--------|
+| `make demo` | Build and start all four services |
+| `make demo-logs` | Follow logs from all services |
+| `make demo-down` | Stop the stack |
+| `make demo-reset` | Hard reset — remove volumes + images, rebuild from scratch |
+| `DOCKER_HOST=ssh://user@host make demo-cloud` | Deploy to a remote server |
+
 ## 6. Technology Stack
 
 | Layer               | Tool                          | Status   | Reason |
@@ -519,7 +604,8 @@ Alert fires
 | Serving             | FastAPI + Prometheus          | ✅ Active | Async inference, Prometheus metrics, non-root Docker |
 | Containerisation    | Docker                        | ✅ Active | Non-root user, uvicorn multi-worker CMD |
 | CI/CD               | GitHub Actions                | ✅ Active | quality → pipeline → docker jobs; DagsHub DVC remote |
-| Monitoring          | Evidently AI + Prometheus + Grafana | Planned | Inference logging · drift reports · confidence dashboards · alerts |
+| Monitoring          | Evidently AI + Prometheus + Grafana | ✅ Active | Inference logging · drift reports · confidence dashboards · alerts |
+| Demo UI             | Streamlit + Plotly + Docker Compose | ✅ Active | Closed-loop demo: predict · feedback · drift · retrain · before/after metrics |
 | Cloud (optional)    | AWS / GCP (S3 + GPU runners)  | Planned  | Scalability |
 
 ---
@@ -567,33 +653,34 @@ purr-duction-pipeline/
 ├── artifacts/                     # confusion_matrix.png · roc_curve.png · classification_report.txt
 ├── monitoring/                    # Phase 8 runtime outputs
 │   ├── inference_log.csv          # append-only log (one row per /predict call)
-│   └── drift_report.html          # Evidently AI report (generated on demand)
+│   ├── feedback_log.csv           # user feedback from Streamlit demo
+│   ├── baseline_stats.csv         # pixel stats of training set, DVC-tracked
+│   ├── drift_report.html          # Evidently AI report (generated on demand)
+│   ├── grafana/                   # Grafana provisioning configs
+│   └── prometheus.yml             # Prometheus scrape config (targets: API :3000/metrics)
+├── demo/                          # Phase 9: interactive demo stack
+│   ├── streamlit_app.py           # Streamlit UI (predict · feedback · pipeline control · monitoring)
+│   ├── simulate_drift.py          # synthetic drift injection — fires OOD images at /predict
+│   ├── Dockerfile.demo            # demo-specific Dockerfile (Streamlit + httpx)
+│   ├── docker-compose.demo.yml    # full 4-service stack: API + Streamlit + Prometheus + Grafana
+│   ├── prometheus.yml             # Prometheus scrape config for demo stack
+│   ├── grafana/                   # pre-provisioned CatOps dashboard
+│   └── demo_data/                 # sample images for live demo
 ├── docker/                        # Dockerfile (non-root, uvicorn multi-worker)
-├── .github/workflows/             # ci-cd.yml: quality → pipeline → docker
+├── docker-compose.yml             # base compose for API + Prometheus + Grafana
+├── .github/workflows/             # ci-cd.yml: quality → pipeline → docker · drift.yml: daily 08:00 UTC
 ├── tests/                         # unit + integration + data validation tests
 ├── notebooks/                     # exploration only (never committed with outputs)
 ├── docs/
 │   ├── Architecture.md
+│   ├── API.md
 │   ├── HowToAddData.md
 │   └── ProjectScope.md
 ├── dvc.yaml                       # pipeline stage definitions
 ├── dvc.lock                       # content hashes (commit this, not the data)
 ├── params.yaml                    # experiment parameters
 ├── pyproject.toml                 # Poetry: deps + tool config
-├── Makefile                       # developer commands (install · test · lint · pipeline · serve)
+├── Makefile                       # developer commands (install · test · lint · pipeline · serve · demo)
 ├── .pre-commit-config.yaml
 └── README.md
-```
-
-**Planned additions (Phase 8)**
-
-```
-├── docker-compose.yml             # local Prometheus + Grafana stack
-├── .github/workflows/
-│   └── drift.yml                  # scheduled daily drift check (cron 08:00 UTC)
-└── monitoring/
-    ├── baseline_stats.csv         # DVC-tracked — pixel stats of training set, versioned with model
-    ├── grafana/
-    │   └── dashboard.json         # pre-built Grafana dashboard (confidence · label dist · drift score)
-    └── prometheus.yml             # Prometheus scrape config (targets: API :3000/metrics)
 ```
