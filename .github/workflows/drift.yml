@@ -1,0 +1,65 @@
+name: Drift Detection
+
+on:
+  schedule:
+    - cron: "0 8 * * *"  # daily at 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 2.4.0
+
+      - name: Install dependencies
+        run: |
+          poetry install --no-root
+          poetry run pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Configure DVC remote
+        run: |
+          poetry run dvc remote add -d dagshub https://dagshub.com/afonsocosta90/purr-duction-pipeline.dvc --force
+          poetry run dvc remote modify dagshub auth basic
+          poetry run dvc remote modify dagshub user ${{ secrets.DAGSHUB_USER }}
+          poetry run dvc remote modify dagshub password ${{ secrets.DAGSHUB_TOKEN }}
+
+      - name: Pull baseline stats
+        run: poetry run dvc pull monitoring/baseline_stats.csv || echo "Baseline not in DVC remote yet — skipping"
+
+      - name: Check inference log exists
+        id: check_log
+        run: |
+          if [ -f monitoring/inference_log.csv ]; then
+            ROWS=$(wc -l < monitoring/inference_log.csv)
+            echo "rows=$ROWS" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Inference log not found — no predictions have been logged yet"
+          fi
+
+      - name: Run drift check
+        if: steps.check_log.outputs.exists == 'true'
+        env:
+          DRIFT_THRESHOLD: "0.5"
+          CONFIDENCE_THRESHOLD: "0.80"
+          DRIFT_WINDOW_SIZE: "200"
+          DRIFT_MIN_SAMPLES: "50"
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: poetry run python -m src.catops.monitoring.drift
+        continue-on-error: true  # exit code 1 means drift detected — don't fail the workflow
+
+      - name: Upload drift report
+        if: steps.check_log.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report
+          path: |
+            monitoring/drift_report.html
+            monitoring/drift_score.json
+          if-no-files-found: ignore

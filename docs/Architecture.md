@@ -3,9 +3,9 @@
 **Binary Image Classification MLOps System**  
 *Cat vs. Not-Cat* – Production-Ready, Fully Automated, Reproducible Pipeline
 
-**Version**: 1.5  
+**Version**: 1.6  
 **Last Updated**: 2026-05-10  
-**Status**: Phase 7 of 8 complete — FastAPI serving layer live · Phase 8 designed
+**Status**: Phase 7 of 8 complete — FastAPI serving layer live · Phase 8 design finalised
 
 ## 1. Project Overview
 
@@ -231,28 +231,35 @@ sequenceDiagram
     participant API as FastAPI service.py
     participant Logger as inference_logger.py
     participant Log as monitoring/inference_log.csv
+    participant GH as GitHub Actions (drift.yml · daily 08:00 UTC)
     participant Drift as drift.py (Evidently AI)
-    participant Baseline as data/processed/metadata.csv
+    participant Baseline as monitoring/baseline_stats.csv
+    participant Prom as Prometheus gauge (catops_drift_score)
     participant Grafana
     participant Alert as alerts.py
     actor Dev as Developer
 
     User->>API: POST /predict (image upload)
     API->>API: classify image → {label, confidence}
-    API->>Logger: log_inference(image_stats, label, confidence, timestamp)
-    Logger->>Log: append row (pixel mean/std, dominant colour, confidence, label, timestamp)
+    API->>Logger: log_inference(image_bytes, label, confidence)
+    Logger->>Logger: hash = MD5(image_bytes) · compute pixel mean/std per channel
+    Logger->>Log: append row (hash, pixel_mean/std_r/g/b, label, confidence, timestamp)
+    Note over Logger: raw image never stored — GDPR-safe
     API-->>User: {label, confidence, is_cat}
 
-    Note over Drift,Baseline: Runs on schedule (e.g. daily cron or manual trigger)
-    Drift->>Log: read recent inference_log.csv
-    Drift->>Baseline: read training set baseline stats
-    Drift->>Drift: Evidently DataDriftReport — compare distributions
-    Drift->>Grafana: push drift score + confidence trend
-    alt drift score exceeds threshold OR avg confidence < 0.80
+    Note over GH,Baseline: Runs daily at 08:00 UTC via GitHub Actions scheduled workflow
+    GH->>Drift: trigger drift.py
+    Drift->>Log: read last N rows from inference_log.csv
+    Drift->>Baseline: read monitoring/baseline_stats.csv (DVC-tracked, versioned with model)
+    Drift->>Drift: Evidently DataDriftPreset — column-level drift on pixel mean/std
+    Drift->>Drift: compute rolling average confidence
+    Drift->>Prom: update catops_drift_score gauge
+    Prom->>Grafana: drift score visible on dashboard automatically
+    alt drift detected OR avg confidence < 0.80
         Drift->>Alert: trigger alert
-        Alert->>Dev: Slack / email — "drift detected, retraining needed"
+        Alert->>Dev: Slack webhook — drift score · confidence · link to drift_report.html
         Dev->>Dev: collect new labelled images<br/>(Uppercase=cat · lowercase=not_cat)
-        Dev->>API: add images to data/raw/images/ → dvc repro → retrain
+        Dev->>Dev: drop into data/raw/images/ → dvc repro --force → retrain
     end
 ```
 
@@ -399,15 +406,21 @@ features → train (depends on: train.py, evaluate.py, dataset.py, feature CSVs,
 
 ### 5.5 CI/CD (Phase 6 — ✅ implemented)
 
-**Workflow** (`.github/workflows/ci-cd.yml`) — triggers on every push/PR to `main` and `workflow_dispatch`:
+**`ci-cd.yml`** — triggers on every push/PR to `main` and `workflow_dispatch`:
 
 | Job | Steps | Condition |
 |-----|-------|-----------|
 | `quality` | Install deps → `make lint` → `make test` | always |
-| `pipeline` | Install deps → configure DVC remote (DagsHub) → `dvc pull` → `make pipeline` → upload `models/best_model.pt` + `artifacts/` | after `quality` |
+| `pipeline` | Install deps → configure DVC remote (DagsHub) → `dvc pull` → `make pipeline` → upload `models/best_model.pt` + `artifacts/` | after `quality`, code changed only |
 | `docker` | Docker Buildx → GHCR login → build & push `ghcr.io/<owner>/purr-duction-pipeline:latest` | `workflow_dispatch` on `main` only |
 
-**Secrets required**: `DAGSHUB_USER`, `DAGSHUB_TOKEN` (DVC remote auth).
+**`drift.yml`** (Phase 8) — triggers on `schedule: cron '0 8 * * *'` and `workflow_dispatch`:
+
+| Job | Steps |
+|-----|-------|
+| `drift` | Install deps → `make drift-report` → upload `monitoring/drift_report.html` as artifact → alert if drift detected |
+
+**Secrets required**: `DAGSHUB_USER`, `DAGSHUB_TOKEN` (DVC remote auth) · `SLACK_WEBHOOK_URL` (Phase 8 alerts).
 
 ### 5.6 Monitoring & Drift Detection (Phase 8 — planned)
 
@@ -424,6 +437,7 @@ Called inside `/predict` after every successful classification — adds one row 
 | Field logged | Detail |
 |---|---|
 | `timestamp` | ISO-8601 request time |
+| `image_hash` | MD5 of raw image bytes — deduplication + GDPR-safe identifier (no raw image stored) |
 | `pixel_mean_r/g/b` | Per-channel mean pixel value of the uploaded image |
 | `pixel_std_r/g/b` | Per-channel standard deviation |
 | `predicted_label` | `cat` or `not_cat` |
@@ -431,19 +445,22 @@ Called inside `/predict` after every successful classification — adds one row 
 
 Output: `monitoring/inference_log.csv` — append-only, one row per request.
 
+**Privacy by design**: only statistical features and a hash are stored. Raw images are never written to disk — compliant with GDPR without any extra effort.
+
 ---
 
 **drift.py** (`src/catops/monitoring/drift.py`)
 
-Runs on a schedule (daily cron or `make drift-report`). Compares the recent inference log against the training set baseline using Evidently AI.
+Triggered automatically by a **GitHub Actions scheduled workflow** (`drift.yml`, daily at 08:00 UTC). Can also be run manually with `make drift-report`.
 
 | Step | Detail |
 |---|---|
-| Load baseline | Compute pixel stats from `data/processed/metadata.csv` (training images) |
+| Load baseline | Read `monitoring/baseline_stats.csv` (pre-computed from training images, DVC-tracked) |
 | Load current window | Read last N rows from `monitoring/inference_log.csv` |
-| Evidently `DataDriftReport` | Column-level drift test on pixel mean/std channels |
+| Evidently `DataDriftPreset` | Column-level drift test on pixel mean/std channels |
 | Output | `monitoring/drift_report.html` — human-readable report |
-| Drift score | Extracted from the report; compared against a configurable threshold |
+| Drift score | Extracted from report; exposed as `catops_drift_score` Prometheus gauge so Grafana picks it up automatically |
+| Confidence check | Rolling average confidence of last N requests compared against threshold (0.80) |
 
 ---
 
@@ -460,14 +477,16 @@ Alert payload: drift score, confidence trend, link to `drift_report.html`, instr
 
 ---
 
-**Grafana dashboard** (`docker-compose.yml` + `monitoring/grafana/`)
+**Grafana dashboard** (`docker-compose.yml` + `monitoring/grafana/dashboard.json`)
+
+All panels are fully automated — no manual data push needed.
 
 | Panel | Source metric |
 |---|---|
-| Prediction label distribution over time | `catops_predictions_total` (Prometheus) |
-| Confidence histogram | `catops_prediction_confidence` (Prometheus) |
-| Request rate | `http_requests_total` (Prometheus) |
-| Drift score trend | Pushed by `drift.py` as a Prometheus gauge |
+| Prediction label distribution over time | `catops_predictions_total` (Prometheus counter) |
+| Confidence histogram | `catops_prediction_confidence` (Prometheus histogram) |
+| Request rate | `http_requests_total` (Prometheus counter, auto-instrumented) |
+| Drift score trend | `catops_drift_score` (Prometheus gauge, updated by `drift.py`) |
 
 ---
 
@@ -570,7 +589,11 @@ purr-duction-pipeline/
 
 ```
 ├── docker-compose.yml             # local Prometheus + Grafana stack
+├── .github/workflows/
+│   └── drift.yml                  # scheduled daily drift check (cron 08:00 UTC)
 └── monitoring/
-    └── grafana/
-        └── dashboard.json         # pre-built Grafana dashboard (confidence · label dist · drift score)
+    ├── baseline_stats.csv         # DVC-tracked — pixel stats of training set, versioned with model
+    ├── grafana/
+    │   └── dashboard.json         # pre-built Grafana dashboard (confidence · label dist · drift score)
+    └── prometheus.yml             # Prometheus scrape config (targets: API :3000/metrics)
 ```

@@ -5,10 +5,10 @@
 A complete end-to-end demonstration of modern MLOps best practices in 2026. This project showcases how to take a simple image classification model from notebook to a fully automated, reproducible, monitored, and deployable production system.
 
 ## 🎯 Current Project Status
-**Phase 7/8 - Model Serving (FastAPI) COMPLETE** ✅  
-**Next: Phase 8/8 - Monitoring & Drift Detection**
+**Phase 9/9 — Interactive Demo & Portfolio Showcase COMPLETE** ✅  
+All phases delivered. Full closed-loop MLOps system with live UI demo.
 
-**Achieved:**
+**Achieved (all 9 phases):**
 - Full project scaffolding with **Poetry**, **Git**, and **DVC**
 - Modular Python package structure (`src/catops/`) with `data/ingest.py` implemented
 - Automated data ingestion and validation pipeline defined in `dvc.yaml`
@@ -26,8 +26,8 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 - **FastAPI serving layer** (`src/catops/serving/`): `/predict`, `/health`, `/metrics` endpoints; lifespan model loading; decompression-bomb guard; content-type validation; per-label Prometheus counters + confidence histogram
 - Docker production image: non-root user, uvicorn multi-worker CMD, model path configurable via env vars
 - **GitHub Actions CI/CD** (`.github/workflows/ci-cd.yml`): lint → test → DVC pull → `dvc repro` → artifact upload → Docker build/push on `workflow_dispatch`
-
-**Next Phase (8/8):** Monitoring & drift detection (Evidently AI + Prometheus + Grafana)
+- **Evidently AI drift detection** (`monitoring/`): per-request pixel-stat logging, daily scheduled drift reports, Prometheus gauge exposure, Slack alerts
+- **Interactive Streamlit demo** (`demo/`): drag-and-drop prediction, feedback submission, one-click synthetic drift injection, live retraining with streaming output, before/after metrics comparison
 
 ## 📁 Project Structure
 ```bash
@@ -71,7 +71,8 @@ A complete end-to-end demonstration of modern MLOps best practices in 2026. This
 | Evaluation | scikit-learn + matplotlib + seaborn | ✅ Phase 5 |
 | Experiment Tracking | MLflow (full integration) | ✅ Phase 5 |
 | Serving | FastAPI + Prometheus | ✅ Phase 7 |
-| Monitoring | Evidently AI + Prometheus + Grafana | ⏳ Phase 8 |
+| Monitoring | Evidently AI + Prometheus + Grafana | ✅ Phase 8 |
+| Demo UI | Streamlit + Plotly | ✅ Phase 9 |
 
 ## 🚀 Quick Start
 

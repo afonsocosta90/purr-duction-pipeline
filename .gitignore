@@ -69,6 +69,11 @@ anthropic/
 project-tree.txt
 *.db
 
+# === Monitoring runtime outputs (not tracked by git) ===
+monitoring/inference_log.csv
+monitoring/drift_report.html
+monitoring/drift_score.json
+
 # === Environment secrets ===
 .env
 .env.*

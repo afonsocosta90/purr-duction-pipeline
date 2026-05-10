@@ -6,15 +6,18 @@ import io
 import logging
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
+import json
 import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from PIL import Image, UnidentifiedImageError
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
+from src.catops.monitoring.inference_logger import log_inference
 from src.catops.serving.model_utils import (
     CLASS_NAMES,
     build_inference_transform,
@@ -42,6 +45,13 @@ _CONFIDENCE = Histogram(
     "Model confidence score distribution",
     buckets=[0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.99, 1.0],
 )
+_DRIFT_SCORE = Gauge(
+    "catops_drift_score",
+    "Latest Evidently AI drift score (share of drifted columns, 0–1; -1 = not yet computed)",
+)
+
+
+_DRIFT_SCORE_PATH = Path("monitoring/drift_score.json")
 
 
 @asynccontextmanager
@@ -51,6 +61,17 @@ async def lifespan(app: FastAPI):
     _state["transform"] = build_inference_transform()
     _state["device"] = next(_state["model"].parameters()).device
     logger.info("Model loaded on device=%s", _state["device"])
+
+    # Restore drift score from last drift run if available
+    _DRIFT_SCORE.set(-1.0)
+    if _DRIFT_SCORE_PATH.exists():
+        try:
+            data = json.loads(_DRIFT_SCORE_PATH.read_text())
+            _DRIFT_SCORE.set(data["score"])
+            logger.info("Restored drift score=%.4f from %s", data["score"], _DRIFT_SCORE_PATH)
+        except Exception:
+            logger.warning("Could not read drift_score.json — gauge stays at -1")
+
     yield
     _state.clear()
 
@@ -69,6 +90,18 @@ class Prediction(BaseModel):
     label: str
     confidence: float
     is_cat: bool
+
+
+class _DriftScorePayload(BaseModel):
+    score: float
+
+
+@app.post("/internal/drift-score", include_in_schema=False)
+async def update_drift_score(payload: _DriftScorePayload):
+    """Called by drift.py after each drift check to keep the Prometheus gauge current."""
+    _DRIFT_SCORE.set(payload.score)
+    logger.info("catops_drift_score updated to %.4f", payload.score)
+    return {"status": "ok", "score": payload.score}
 
 
 @app.get("/health")
@@ -116,6 +149,7 @@ async def predict(file: UploadFile = File(...)):
 
     _PREDICTIONS.labels(label=result.label).inc()
     _CONFIDENCE.observe(result.confidence)
+    log_inference(data, image, result.label, result.confidence)
 
     latency_ms = (time.perf_counter() - t0) * 1000
     logger.info(
