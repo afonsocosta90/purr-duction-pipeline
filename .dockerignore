@@ -1,0 +1,28 @@
+# Heavy data directories — never needed inside the image at build time.
+# The API reads these from the bind-mounted host volume at runtime.
+data/
+mlruns/
+outputs/
+artifacts/
+models/
+
+# Dev/tooling noise
+.git/
+.dvc/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Notebooks (outputs can be large)
+notebooks/
+
+# Local secrets / IDE
+.env
+.vscode/
+.idea/

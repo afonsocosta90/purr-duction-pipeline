@@ -21,8 +21,6 @@
 #   picks up the new checkpoint on the next request (or restart).
 #   Data that must be shared between containers lives in named volumes.
 
-version: "3.9"
-
 # ---------------------------------------------------------------------------
 # Shared network
 # ---------------------------------------------------------------------------

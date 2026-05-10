@@ -64,9 +64,10 @@ demo: ## Build and start full demo (FastAPI + Streamlit + Prometheus + Grafana)
 	@echo ""
 	docker compose -f demo/docker-compose.demo.yml build api
 	@echo ""
-	@echo "  Step 2/2 — Building Streamlit image and starting all services…"
+	@echo "  Step 2/2 — Building Streamlit image (reuses API layer) and starting services…"
 	@echo ""
-	docker compose -f demo/docker-compose.demo.yml up --build -d
+	docker compose -f demo/docker-compose.demo.yml build streamlit
+	docker compose -f demo/docker-compose.demo.yml up -d
 	@echo ""
 	@echo "  ✅ Services are starting. Will be available at:"
 	@echo ""
@@ -88,7 +89,8 @@ demo-reset: ## Hard reset — remove containers + volumes, then rebuild from scr
 	docker compose -f demo/docker-compose.demo.yml down -v --remove-orphans
 	docker rmi catops-api:demo catops-demo:latest 2>/dev/null || true
 	docker compose -f demo/docker-compose.demo.yml build api
-	docker compose -f demo/docker-compose.demo.yml up --build -d
+	docker compose -f demo/docker-compose.demo.yml build streamlit
+	docker compose -f demo/docker-compose.demo.yml up -d
 	@echo "✅ Demo stack rebuilt and running."
 
 demo-logs: ## Follow logs from all demo services
