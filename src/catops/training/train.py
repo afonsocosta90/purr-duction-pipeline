@@ -6,6 +6,7 @@
 - Modern weights API
 """
 
+import os
 from pathlib import Path
 import torch
 import torch.nn as nn
@@ -70,13 +71,15 @@ def train(cfg: DictConfig) -> None:
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=cfg.training.learning_rate)
 
+    epochs = 1 if os.environ.get("CI") == "true" else cfg.training.epochs
+
     # MLflow
     mlflow.set_experiment("am-i-a-cat")
     with mlflow.start_run(run_name=f"resnet50-seed-{cfg.training.seed}"):
         mlflow.log_params(
             {
                 "model": cfg.model.name,
-                "epochs": cfg.training.epochs,
+                "epochs": epochs,
                 "batch_size": cfg.training.batch_size,
                 "lr": cfg.training.learning_rate,
                 "train_samples": len(train_dataset),
@@ -84,9 +87,9 @@ def train(cfg: DictConfig) -> None:
             }
         )
 
-        print(f"🚀 Training on {device} for {cfg.training.epochs} epochs...")
+        print(f"🚀 Training on {device} for {epochs} epochs...")
 
-        for epoch in range(cfg.training.epochs):
+        for epoch in range(epochs):
             model.train()
             running_loss = 0.0
             for inputs, labels in train_loader:
