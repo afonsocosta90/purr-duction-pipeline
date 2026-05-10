@@ -1,0 +1,154 @@
+# demo/docker-compose.demo.yml
+# Full local demo stack for "Am I a Cat?" — Phase 9 portfolio showcase.
+#
+# Services
+# ─────────────────────────────────────────────────────────────────────────
+#   api        FastAPI inference server          → http://localhost:3000
+#   streamlit  Interactive Streamlit demo UI     → http://localhost:8501
+#   prometheus Prometheus metrics scraper        → http://localhost:9090
+#   grafana    Grafana dashboards                → http://localhost:3001
+#
+# Quick start
+# ─────────────────────────────────────────────────────────────────────────
+#   make demo            # build images + start all services
+#   make demo-reset      # tear down, prune volumes, rebuild from scratch
+#
+# Volume strategy
+# ─────────────────────────────────────────────────────────────────────────
+#   The project root is bind-mounted into both `api` and `streamlit` so
+#   that `dvc repro --force` inside the Streamlit container writes updated
+#   models/best_model.pt back to the host filesystem. The API container
+#   picks up the new checkpoint on the next request (or restart).
+#   Data that must be shared between containers lives in named volumes.
+
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# Shared network
+# ---------------------------------------------------------------------------
+
+networks:
+  catops-net:
+    driver: bridge
+
+# ---------------------------------------------------------------------------
+# Named volumes (persistent across `docker compose up/down`)
+# ---------------------------------------------------------------------------
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  monitoring-data:     # shared monitoring/inference_log.csv + feedback_log.csv
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+
+services:
+
+  # ─────────────────────────────────────────────────────────────────────
+  # FastAPI inference service  (existing production image)
+  # ─────────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ..           # project root
+      dockerfile: docker/Dockerfile
+    image: catops-api:demo
+    container_name: catops-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Bind-mount the project root so the API uses the host's model checkpoint
+      # and features_config.json — changes from retraining are visible immediately.
+      - ..:/app
+    environment:
+      MODEL_PATH: /app/models/best_model.pt
+      MODEL_CONFIG_PATH: /app/models/model_config.json
+      FEATURES_CONFIG_PATH: /app/data/processed/features_config.json
+      # Write inference log to the shared named volume mount
+      INFERENCE_LOG_PATH: /app/monitoring/inference_log.csv
+    networks:
+      - catops-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Streamlit interactive demo UI
+  # ─────────────────────────────────────────────────────────────────────
+  streamlit:
+    build:
+      context: ..
+      dockerfile: demo/Dockerfile.demo
+    image: catops-demo:latest
+    container_name: catops-streamlit
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    volumes:
+      # Bind-mount project root so dvc repro + mlruns writes hit the host
+      - ..:/app
+    environment:
+      API_URL: http://api:3000           # internal docker network name
+      PROJECT_ROOT: /app
+      GRAFANA_URL: http://localhost:3001
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+      STREAMLIT_SERVER_HEADLESS: "true"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - catops-net
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Prometheus  — scrapes /metrics from the FastAPI service
+  # ─────────────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: catops-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+    networks:
+      - catops-net
+    depends_on:
+      - api
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Grafana  — pre-provisioned CatOps dashboard
+  # ─────────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana-oss:10.4.2
+    container_name: catops-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"          # host:container (Grafana default is 3000)
+    volumes:
+      - grafana-data:/var/lib/grafana
+      # Provisioning: auto-load the Prometheus datasource + CatOps dashboard
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: catops
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/catops-dashboard.json
+      GF_SERVER_DOMAIN: localhost
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:3001"
+      GF_LOG_LEVEL: warn
+    networks:
+      - catops-net
+    depends_on:
+      - prometheus

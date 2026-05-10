@@ -1,0 +1,39 @@
+# demo/prometheus.yml
+# Prometheus scrape configuration for the "Am I a Cat?" demo stack.
+#
+# Targets
+# ───────────────────────────────────────────────────────────
+#   catops-api   →  api:3000/metrics   (custom + HTTP metrics)
+#
+# Custom metrics exposed by the FastAPI service:
+#   catops_predictions_total{label}         Counter — predictions by class
+#   catops_prediction_confidence_bucket     Histogram — confidence distribution
+#   http_request_duration_seconds           Histogram — request latency
+#   http_requests_total                     Counter — request count by status
+
+global:
+  scrape_interval:     15s   # pull metrics every 15 seconds
+  evaluation_interval: 15s   # evaluate alerting rules every 15 seconds
+  scrape_timeout:       10s
+
+# ---------------------------------------------------------------------------
+# Scrape configurations
+# ---------------------------------------------------------------------------
+
+scrape_configs:
+
+  # FastAPI service — exposes /metrics via prometheus-fastapi-instrumentator
+  - job_name: catops-api
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - api:3000    # docker-compose service name + internal port
+        labels:
+          service: catops
+          environment: demo
+
+  # Prometheus self-monitoring (useful for debugging scrape health)
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090

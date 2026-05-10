@@ -1,0 +1,15 @@
+# demo/grafana/provisioning/dashboards/dashboards.yml
+# Tells Grafana to watch /var/lib/grafana/dashboards/ for JSON dashboard files
+# and auto-import them on startup — zero manual click-through required.
+
+apiVersion: 1
+
+providers:
+  - name: CatOps Dashboards
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

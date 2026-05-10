@@ -59,7 +59,12 @@ demo: ## Build and start full demo (FastAPI + Streamlit + Prometheus + Grafana)
 	@echo "║          Am I a Cat? — MLOps Portfolio Demo                 ║"
 	@echo "╚══════════════════════════════════════════════════════════════╝"
 	@echo ""
-	@echo "  Building images and starting services…"
+	@echo "  Step 1/2 — Building API image (catops-api:demo)…"
+	@echo "  (Streamlit image reuses this layer — only built once)"
+	@echo ""
+	docker compose -f demo/docker-compose.demo.yml build api
+	@echo ""
+	@echo "  Step 2/2 — Building Streamlit image and starting all services…"
 	@echo ""
 	docker compose -f demo/docker-compose.demo.yml up --build -d
 	@echo ""
@@ -82,6 +87,7 @@ demo-reset: ## Hard reset — remove containers + volumes, then rebuild from scr
 	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
 	docker compose -f demo/docker-compose.demo.yml down -v --remove-orphans
 	docker rmi catops-api:demo catops-demo:latest 2>/dev/null || true
+	docker compose -f demo/docker-compose.demo.yml build api
 	docker compose -f demo/docker-compose.demo.yml up --build -d
 	@echo "✅ Demo stack rebuilt and running."
 

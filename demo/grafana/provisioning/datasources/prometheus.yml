@@ -1,0 +1,16 @@
+# demo/grafana/provisioning/datasources/prometheus.yml
+# Auto-provisions the Prometheus datasource in Grafana on first boot.
+# No manual UI configuration required.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090   # internal docker-compose service name
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: GET
+      timeInterval: "15s"        # matches prometheus scrape_interval
