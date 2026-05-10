@@ -17,7 +17,7 @@
 | 5     | Experiment Tracking               | MLflow full integration + real evaluation | ✅ Done | Real per-split metrics, artifact logging (confusion matrix, ROC curve), and promotion governed by actual val performance. |
 | 6     | CI/CD Pipeline                    | GitHub Actions                        | ✅ Done | Automated lint → test → DVC repro → artifact upload → Docker build/push on every push. |
 | 7     | Model Serving & API               | FastAPI + Prometheus                  | ✅ Done | Production web service: /predict, /health, /metrics; Prometheus counters + confidence histogram; decompression-bomb guard; multi-worker Docker. |
-| 8     | Monitoring & Drift Detection      | Evidently AI + Prometheus + Grafana   | Planned | Full observability and automated retraining triggers. |
+| 8     | Monitoring & Drift Detection      | Evidently AI + Prometheus + Grafana   | Planned | Log pixel stats on every `/predict` call. Evidently AI compares inference distribution against training baseline. Prometheus + Grafana dashboard for confidence and label trends. Alert fires on drift or confidence drop → human collects new labelled data → pipeline retrains. |
 
 
 

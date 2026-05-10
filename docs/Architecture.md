@@ -3,9 +3,9 @@
 **Binary Image Classification MLOps System**  
 *Cat vs. Not-Cat* – Production-Ready, Fully Automated, Reproducible Pipeline
 
-**Version**: 1.3  
-**Last Updated**: 2026-05-09  
-**Status**: Phase 7 of 8 complete — FastAPI serving layer live
+**Version**: 1.5  
+**Last Updated**: 2026-05-10  
+**Status**: Phase 7 of 8 complete — FastAPI serving layer live · Phase 8 designed
 
 ## 1. Project Overview
 
@@ -44,8 +44,8 @@ What starts as a simple notebook model will be transformed into a **complete MLO
 ```mermaid
 flowchart TD
     subgraph Data["Data Layer ✅ Phases 1-2"]
-        RAW["data/raw/<br/>images.tar.gz (or cat/ + not_cat/)"]
-        INGEST["ingest.py<br/>extract + classify"]
+        RAW["data/raw/images/<br/>Uppercase first letter → cat<br/>lowercase → not_cat"]
+        INGEST["ingest.py<br/>classify by filename · copy to processed/"]
         PROC["data/processed/<br/>cat/ · not_cat/ · metadata.csv"]
         VAL["validate.py<br/>quality gates"]
     end
@@ -68,21 +68,27 @@ flowchart TD
         API["FastAPI service.py<br/>/predict · /health · /metrics"]
     end
     subgraph Monitor["Monitoring — Phase 8"]
-        EVIDENTLY["Evidently AI<br/>data drift"]
-        PROM["Prometheus + Grafana<br/>model drift + alerting"]
+        LOG["inference_logger.py<br/>save image stats per request"]
+        DRIFT["drift.py<br/>Evidently AI report"]
+        PROM2["Prometheus + Grafana<br/>confidence · label dist · latency"]
+        ALERT["alerts.py<br/>Slack / email on drift"]
     end
     RAW --> INGEST --> PROC --> VAL
     VAL --> SPLIT --> FEAT --> TRAIN
     HYDRA --> TRAIN
     DS --> TRAIN --> EVAL --> MLFLOW
     MLFLOW --> GH --> UTILS --> API
-    API --> EVIDENTLY --> PROM
-    PROM -->|"drift alert → retrain"| RAW
+    API -->|"log image stats"| LOG
+    LOG --> DRIFT --> ALERT
+    PROM2 -->|"confidence drops"| ALERT
+    ALERT -->|"human adds labelled data"| RAW
 ```
 
 ---
 
-## 4. Sequence Diagram — Data Pipeline (Phases 1-2)
+## 4. Sequence Diagrams
+
+### 4.1 Data Pipeline (Phases 1–2)
 
 ```mermaid
 sequenceDiagram
@@ -92,13 +98,15 @@ sequenceDiagram
     participant Ingest as ingest.py
     participant Validate as validate.py
     participant Remote as DVC Remote
-    Dev->>FS: place images.tar.gz in data/raw/
+
+    Note over Dev,FS: Naming rule — Uppercase first letter → cat · lowercase → not_cat
+    Dev->>FS: place named images in data/raw/images/<br/>(e.g. Siamese_01.jpg → cat · labrador_01.jpg → not_cat)
     Dev->>DVC: dvc repro
     DVC->>Ingest: run stage: ingest
-    Ingest->>FS: extract images.tar.gz → data/raw/images/
-    Ingest->>FS: classify by filename (uppercase first → cat)
-    Ingest->>FS: copy into data/processed/cat/ and not_cat/
-    Ingest-->>DVC: stage complete (7 390 images)
+    Ingest->>FS: scan data/raw/images/ for *.jpg / *.jpeg / *.png
+    Ingest->>FS: img.name[0].isupper() → copy to data/processed/cat/
+    Ingest->>FS: img.name[0].islower() → copy to data/processed/not_cat/
+    Ingest-->>DVC: stage complete (7,390 images)
     DVC->>Validate: run stage: validate
     Validate->>FS: scan data/processed/ → build metadata.csv
     Validate->>Validate: gate 1 — both classes present?
@@ -113,6 +121,141 @@ sequenceDiagram
     Dev->>FS: git commit dvc.lock && git push
 ```
 
+### 4.2 Feature Engineering (Phase 3)
+
+```mermaid
+sequenceDiagram
+    participant DVC
+    participant BF as build_features.py
+    participant FS as Filesystem
+
+    DVC->>BF: run stage: features (depends on validate)
+    BF->>FS: read data/processed/metadata.csv
+    BF->>BF: stratified split 70/15/15 (seed=42, stratify=label)
+    BF->>FS: write data/processed/train.csv · val.csv · test.csv
+    BF->>BF: compute resize target (224×224) + normalisation stats
+    BF->>FS: write data/processed/features_config.json
+    BF-->>DVC: stage complete
+```
+
+### 4.3 Training & Evaluation (Phases 4–5)
+
+```mermaid
+sequenceDiagram
+    participant DVC
+    participant Hydra
+    participant DS as CatDataset
+    participant Train as train.py
+    participant Eval as evaluate.py
+    participant MLflow
+
+    DVC->>Train: run stage: train (depends on features)
+    Train->>Hydra: load configs/config.yaml (model + training)
+    Train->>DS: CatDataset(train.csv, transform=build_inference_transform())
+    DS->>DS: label mapping: cat→1 · not_cat→0
+    Train->>Train: ResNet50 (IMAGENET1K_V1 weights) + Adam + CrossEntropyLoss
+    Train->>MLflow: log params · per-epoch train loss
+    loop Each epoch
+        Train->>DS: DataLoader batch (train split)
+        Train->>Train: forward · loss · backward · step
+        Train->>DS: DataLoader batch (val split)
+        Train->>Eval: compute accuracy · F1 · precision · recall · ROC-AUC
+        Eval-->>Train: val metrics
+        Train->>MLflow: log val metrics
+    end
+    Train->>Train: promotion gate — accuracy ≥ 0.94 AND F1 ≥ 0.93?
+    alt promoted
+        Train->>MLflow: log model to registry + tag "staging"
+    end
+    Eval->>MLflow: log confusion_matrix.png · roc_curve.png · classification_report.txt
+    Train->>DVC: output models/best_model.pt
+```
+
+### 4.4 CI/CD (Phase 6)
+
+```mermaid
+sequenceDiagram
+    actor Dev as Developer
+    participant GH as GitHub Actions
+    participant DVC
+    participant Remote as DVC Remote (DagsHub)
+    participant GHCR as GitHub Container Registry
+
+    Dev->>GH: git push → trigger workflow
+    GH->>GH: job: quality — make lint + make test
+    GH->>Remote: dvc pull (restore versioned data)
+    GH->>DVC: make pipeline (dvc repro)
+    DVC-->>GH: models/best_model.pt + artifacts/
+    GH->>GH: upload artifacts (GitHub Actions artifact store)
+    Note over GH,GHCR: docker job runs on workflow_dispatch only
+    GH->>GHCR: docker buildx build & push ghcr.io/<owner>/purr-duction-pipeline:latest
+```
+
+### 4.5 Inference / Serving (Phase 7)
+
+```mermaid
+sequenceDiagram
+    actor Client
+    participant API as FastAPI service.py
+    participant Utils as model_utils.py
+    participant Prom as Prometheus
+
+    Note over API,Utils: Startup (lifespan)
+    API->>Utils: load_model() — reads MODEL_PATH env var
+    Utils->>Utils: build ResNet50 from model_config.json · load state dict
+    API->>Utils: build_inference_transform() — reads FEATURES_CONFIG_PATH
+    Utils->>Utils: resize 224×224 · normalise from features_config.json
+
+    Client->>API: GET /health
+    API-->>Client: 200 OK {status: healthy} · 503 if model not loaded
+
+    Client->>API: POST /predict (multipart image)
+    API->>API: content-type check → 415 if non-image
+    API->>API: size check → 413 if > 10 MB
+    API->>API: decompression-bomb guard (MAX_IMAGE_PIXELS = 4 000 000)
+    API->>Utils: apply transform · model.forward()
+    Utils-->>API: softmax probabilities
+    API->>Prom: catops_predictions_total{label} += 1
+    API->>Prom: catops_prediction_confidence.observe(confidence)
+    API-->>Client: {label, confidence, is_cat}
+
+    Client->>API: GET /metrics
+    API-->>Client: Prometheus text format (HTTP + custom metrics)
+```
+
+### 4.6 Monitoring & Drift Detection (Phase 8)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant API as FastAPI service.py
+    participant Logger as inference_logger.py
+    participant Log as monitoring/inference_log.csv
+    participant Drift as drift.py (Evidently AI)
+    participant Baseline as data/processed/metadata.csv
+    participant Grafana
+    participant Alert as alerts.py
+    actor Dev as Developer
+
+    User->>API: POST /predict (image upload)
+    API->>API: classify image → {label, confidence}
+    API->>Logger: log_inference(image_stats, label, confidence, timestamp)
+    Logger->>Log: append row (pixel mean/std, dominant colour, confidence, label, timestamp)
+    API-->>User: {label, confidence, is_cat}
+
+    Note over Drift,Baseline: Runs on schedule (e.g. daily cron or manual trigger)
+    Drift->>Log: read recent inference_log.csv
+    Drift->>Baseline: read training set baseline stats
+    Drift->>Drift: Evidently DataDriftReport — compare distributions
+    Drift->>Grafana: push drift score + confidence trend
+    alt drift score exceeds threshold OR avg confidence < 0.80
+        Drift->>Alert: trigger alert
+        Alert->>Dev: Slack / email — "drift detected, retraining needed"
+        Dev->>Dev: collect new labelled images<br/>(Uppercase=cat · lowercase=not_cat)
+        Dev->>API: add images to data/raw/images/ → dvc repro → retrain
+    end
+```
+
 ---
 
 ## 5. Detailed Component Architecture
@@ -123,11 +266,12 @@ sequenceDiagram
 
 | Responsibility | Detail |
 |----------------|--------|
-| Source dataset | Oxford-IIIT Pet (37 breeds, JPEG) |
-| Classification rule | Uppercase first letter → `cat`; lowercase → `not_cat` |
-| Input | `data/raw/images.tar.gz` |
+| Source dataset | Oxford-IIIT Pet (37 breeds, JPEG); any user-added images following the same convention |
+| Classification rule | `filename[0].isupper()` → `cat`; `filename[0].islower()` → `not_cat` |
+| Input | `data/raw/images/` — flat directory; optionally bootstrapped from `images.tar.gz` |
 | Output | `data/processed/cat/` and `data/processed/not_cat/` |
-| Idempotent | Skips extraction if `data/raw/images/` already exists |
+| Idempotent | Skips tar extraction if `data/raw/images/` already exists |
+| Adding new data | Place new files in `data/raw/images/` with correct capitalisation (see `docs/HowToAddData.md`) |
 
 **validate.py** (`src/catops/data/validate.py`)
 
@@ -265,11 +409,80 @@ features → train (depends on: train.py, evaluate.py, dataset.py, feature CSVs,
 
 **Secrets required**: `DAGSHUB_USER`, `DAGSHUB_TOKEN` (DVC remote auth).
 
-### 5.6 Monitoring (Phase 8 — planned)
-- **Data drift**: Evidently AI (feature distribution shift)
-- **Model drift**: Prometheus metrics + Grafana dashboards
-- **Logging**: structured JSON + OpenTelemetry traces
-- **Alerts**: Slack/email when drift threshold exceeded → triggers retraining
+### 5.6 Monitoring & Drift Detection (Phase 8 — planned)
+
+**The core problem**: once the model is deployed, the images people send to `/predict` may gradually look different from the training data. The model silently degrades — confidence drops, misclassifications increase — with no visible signal unless you instrument it.
+
+**Solution**: log a statistical fingerprint of every inference request, periodically compare it against the training baseline, and alert when the distributions diverge.
+
+---
+
+**inference_logger.py** (`src/catops/monitoring/inference_logger.py`)
+
+Called inside `/predict` after every successful classification — adds one row to the inference log without blocking the response.
+
+| Field logged | Detail |
+|---|---|
+| `timestamp` | ISO-8601 request time |
+| `pixel_mean_r/g/b` | Per-channel mean pixel value of the uploaded image |
+| `pixel_std_r/g/b` | Per-channel standard deviation |
+| `predicted_label` | `cat` or `not_cat` |
+| `confidence` | Softmax score for the predicted class |
+
+Output: `monitoring/inference_log.csv` — append-only, one row per request.
+
+---
+
+**drift.py** (`src/catops/monitoring/drift.py`)
+
+Runs on a schedule (daily cron or `make drift-report`). Compares the recent inference log against the training set baseline using Evidently AI.
+
+| Step | Detail |
+|---|---|
+| Load baseline | Compute pixel stats from `data/processed/metadata.csv` (training images) |
+| Load current window | Read last N rows from `monitoring/inference_log.csv` |
+| Evidently `DataDriftReport` | Column-level drift test on pixel mean/std channels |
+| Output | `monitoring/drift_report.html` — human-readable report |
+| Drift score | Extracted from the report; compared against a configurable threshold |
+
+---
+
+**alerts.py** (`src/catops/monitoring/alerts.py`)
+
+Fires when `drift.py` detects drift or when average confidence in the inference window drops below the threshold.
+
+| Condition | Trigger |
+|---|---|
+| Evidently drift score > threshold | Distribution of incoming images differs from training |
+| Rolling average confidence < 0.80 | Model is uncertain — likely out-of-distribution inputs |
+
+Alert payload: drift score, confidence trend, link to `drift_report.html`, instructions to retrain.
+
+---
+
+**Grafana dashboard** (`docker-compose.yml` + `monitoring/grafana/`)
+
+| Panel | Source metric |
+|---|---|
+| Prediction label distribution over time | `catops_predictions_total` (Prometheus) |
+| Confidence histogram | `catops_prediction_confidence` (Prometheus) |
+| Request rate | `http_requests_total` (Prometheus) |
+| Drift score trend | Pushed by `drift.py` as a Prometheus gauge |
+
+---
+
+**Retraining loop**
+
+The monitoring system cannot label production images automatically — uploaded images have no ground-truth label. The loop is human-assisted:
+
+```
+Alert fires
+    → Developer reviews drift_report.html
+    → Collects new labelled images (Uppercase filename = cat, lowercase = not_cat)
+    → Drops them into data/raw/images/
+    → Runs: poetry run dvc repro --force && poetry run dvc push
+    → New model trained, evaluated, and promoted if it passes the promotion gate
+```
 
 ## 6. Technology Stack
 
@@ -287,12 +500,12 @@ features → train (depends on: train.py, evaluate.py, dataset.py, feature CSVs,
 | Serving             | FastAPI + Prometheus          | ✅ Active | Async inference, Prometheus metrics, non-root Docker |
 | Containerisation    | Docker                        | ✅ Active | Non-root user, uvicorn multi-worker CMD |
 | CI/CD               | GitHub Actions                | ✅ Active | quality → pipeline → docker jobs; DagsHub DVC remote |
-| Monitoring          | Evidently AI + Prometheus     | Planned  | Drift detection + alerting |
+| Monitoring          | Evidently AI + Prometheus + Grafana | Planned | Inference logging · drift reports · confidence dashboards · alerts |
 | Cloud (optional)    | AWS / GCP (S3 + GPU runners)  | Planned  | Scalability |
 
 ---
 
-## 7. Repository Layout (current)
+## 7. Repository Layout
 
 ```
 purr-duction-pipeline/
@@ -300,54 +513,64 @@ purr-duction-pipeline/
 │   └── catops/
 │       ├── __init__.py
 │       ├── data/
-│       │   ├── ingest.py          # Phase 2: extract + classify
+│       │   ├── ingest.py          # Phase 2: classify by filename capitalisation + copy to processed/
 │       │   ├── validate.py        # Phase 2: quality gates + metadata.csv
-│       │   └── dataset.py         # Phase 5: CatDataset, split-aware CSV loader
+│       │   └── dataset.py         # Phase 3: CatDataset, split-aware CSV loader
 │       ├── features/
 │       │   └── build_features.py  # Phase 3: stratified split + features_config.json
 │       ├── training/
-│       │   └── train.py           # Phases 4–5: ResNet50 + CatDataset + real eval + MLflow
+│       │   └── train.py           # Phases 4–5: ResNet50 + MLflow tracking + promotion gate
 │       ├── evaluation/
-│       │   └── evaluate.py        # Phase 5: sklearn metrics + confusion matrix + ROC curve
+│       │   └── evaluate.py        # Phase 5: accuracy · F1 · confusion matrix · ROC curve
 │       ├── serving/               # Phase 7: FastAPI service
-│       │   ├── model_utils.py     # load_model + build_inference_transform
-│       │   └── service.py         # FastAPI app: /predict /health /metrics
-│       ├── utils/                 # shared logging, config, etc.
-│       └── __init__.py
-├── configs/                      # Hydra configs (data, model, training)
-├── pipelines/                    # DVC stages + future Prefect/Dagster flows
+│       │   ├── model_utils.py     # load_model() + build_inference_transform()
+│       │   └── service.py         # /predict · /health · /metrics
+│       ├── monitoring/            # Phase 8: drift detection
+│       │   ├── inference_logger.py  # log pixel stats + confidence per request
+│       │   ├── drift.py             # Evidently AI drift report
+│       │   └── alerts.py            # Slack / email notifications
+│       └── utils/                 # shared logging, config helpers
+├── configs/                       # Hydra configs: config.yaml → model.yaml + training.yaml
+├── pipelines/                     # DVC stage helpers + future orchestration flows
 ├── data/
-│   ├── raw/                      # DVC-tracked archive
-│   └── processed/                # cat/, not_cat/, metadata.csv
-├── docker/                       # Dockerfile, multi-stage builds
-├── .github/workflows/            # CI/CD (lint → dvc repro → train → deploy)
-├── tests/                        # Unit + integration + data validation tests
-├── notebooks/                    # Exploration only (never committed with outputs)
+│   ├── raw/
+│   │   └── images/                # flat directory — filenames determine class (Uppercase=cat)
+│   └── processed/
+│       ├── cat/                   # owned by ingest.py
+│       ├── not_cat/               # owned by ingest.py
+│       ├── metadata.csv           # owned by validate.py
+│       ├── train.csv              # owned by build_features.py
+│       ├── val.csv                # owned by build_features.py
+│       ├── test.csv               # owned by build_features.py
+│       └── features_config.json   # resize target + normalisation stats
+├── models/
+│   └── best_model.pt              # DVC output of train stage
+├── artifacts/                     # confusion_matrix.png · roc_curve.png · classification_report.txt
+├── monitoring/                    # Phase 8 runtime outputs
+│   ├── inference_log.csv          # append-only log (one row per /predict call)
+│   └── drift_report.html          # Evidently AI report (generated on demand)
+├── docker/                        # Dockerfile (non-root, uvicorn multi-worker)
+├── .github/workflows/             # ci-cd.yml: quality → pipeline → docker
+├── tests/                         # unit + integration + data validation tests
+├── notebooks/                     # exploration only (never committed with outputs)
 ├── docs/
 │   ├── Architecture.md
-│   ├── ProjectScope.md
-│   └── mermaid-diagram.svg
-├── data/
-│   ├── raw/                      # DVC-tracked archive
-│   └── processed/
-│       ├── cat/
-│       ├── not_cat/
-│       ├── metadata.csv
-│       ├── train.csv
-│       ├── val.csv
-│       ├── test.csv
-│       └── features_config.json
-├── dvc.yaml
-├── dvc.lock
-├── params.yaml
-├── pyproject.toml
-├── Makefile
+│   ├── HowToAddData.md
+│   └── ProjectScope.md
+├── dvc.yaml                       # pipeline stage definitions
+├── dvc.lock                       # content hashes (commit this, not the data)
+├── params.yaml                    # experiment parameters
+├── pyproject.toml                 # Poetry: deps + tool config
+├── Makefile                       # developer commands (install · test · lint · pipeline · serve)
 ├── .pre-commit-config.yaml
 └── README.md
 ```
 
-**Planned additions (Phases 7-8)**
+**Planned additions (Phase 8)**
 
 ```
-└── docker-compose.yml          ← Local dev + MLflow server
+├── docker-compose.yml             # local Prometheus + Grafana stack
+└── monitoring/
+    └── grafana/
+        └── dashboard.json         # pre-built Grafana dashboard (confidence · label dist · drift score)
 ```
