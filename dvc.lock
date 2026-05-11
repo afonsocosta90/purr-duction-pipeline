@@ -5,8 +5,8 @@ stages:
     deps:
     - path: src/catops/data/ingest.py
       hash: md5
-      md5: 81f3e8c8389e9d9cf763c215dec1068b
-      size: 2086
+      md5: 8a229a0c62596eb1c8a90d44831f8782
+      size: 2087
     outs:
     - path: data/processed/cat
       hash: md5
@@ -33,8 +33,8 @@ stages:
       nfiles: 4990
     - path: src/catops/data/validate.py
       hash: md5
-      md5: 81ef8325637e4d335cb8ba6d3c7f3a65
-      size: 4179
+      md5: 0d5faa61335cabceaf37ee5a376ad7c5
+      size: 4276
     outs:
     - path: data/processed/metadata.csv
       hash: md5
@@ -53,8 +53,8 @@ stages:
       size: 296163
     - path: src/catops/features/build_features.py
       hash: md5
-      md5: 331e26fd738b343a47f5865b2f662b9f
-      size: 2576
+      md5: 705a462de4f516700ec5a43898072f30
+      size: 2645
     outs:
     - path: data/processed/features_config.json
       hash: md5
