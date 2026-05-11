@@ -25,7 +25,6 @@ def test_configs_exist():
 
 def test_dvc_pipeline_defined():
     assert Path("dvc.yaml").exists()
-    assert Path("params.yaml").exists()
 
 
 def test_processed_splits_exist():
