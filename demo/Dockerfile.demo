@@ -10,13 +10,11 @@
 
 FROM catops-api:demo
 
-# Switch to root briefly to install the extra packages into the existing venv
+# Switch to root briefly to install demo group packages via Poetry
+# (versions are governed by poetry.lock — no manual pip pins needed)
 USER root
 
-RUN pip install --no-cache-dir \
-    streamlit==1.45.0 \
-    httpx==0.28.1 \
-    plotly==6.1.1
+RUN poetry install --with demo --no-root --no-interaction
 
 # Drop back to the non-root user defined in the base image
 USER appuser

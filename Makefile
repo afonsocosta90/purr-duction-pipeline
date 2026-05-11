@@ -59,6 +59,9 @@ demo: ## Build and start full demo (FastAPI + Streamlit + Prometheus + Grafana)
 	@echo "║          Am I a Cat? — MLOps Portfolio Demo                 ║"
 	@echo "╚══════════════════════════════════════════════════════════════╝"
 	@echo ""
+	@echo "  Clearing previous session logs…"
+	@rm -f monitoring/feedback_log.csv monitoring/inference_log.csv
+	@echo ""
 	@echo "  Step 1/2 — Building API image (catops-api:demo)…"
 	@echo "  (Streamlit image reuses this layer — only built once)"
 	@echo ""
@@ -82,6 +85,8 @@ demo: ## Build and start full demo (FastAPI + Streamlit + Prometheus + Grafana)
 
 demo-down: ## Stop the demo stack
 	docker compose -f demo/docker-compose.demo.yml down
+	@rm -f monitoring/feedback_log.csv monitoring/inference_log.csv
+	@echo "  Session logs cleared."
 
 demo-reset: ## Hard reset — remove containers + volumes, then rebuild from scratch
 	@echo "⚠️  This removes all Prometheus and Grafana data volumes."
