@@ -73,13 +73,18 @@ def train(cfg: DictConfig) -> None:
 
     epochs = 1 if os.environ.get("CI") == "true" else cfg.training.epochs
 
-    # MLflow — remote on DagsHub, falls back to local when MLFLOW_TRACKING_URI is unset
-    mlflow.set_tracking_uri(
-        os.environ.get(
-            "MLFLOW_TRACKING_URI",
-            "https://dagshub.com/afonsocosta90/purr-duction-pipeline.mlflow",
-        )
+    # MLflow — use remote only when credentials are present, else local mlruns/
+    tracking_uri = os.environ.get(
+        "MLFLOW_TRACKING_URI",
+        "https://dagshub.com/afonsocosta90/purr-duction-pipeline.mlflow",
     )
+    has_credentials = bool(
+        os.environ.get("MLFLOW_TRACKING_USERNAME")
+        and os.environ.get("MLFLOW_TRACKING_PASSWORD")
+    )
+    if not has_credentials and tracking_uri.startswith("http"):
+        tracking_uri = "mlruns"
+    mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment("am-i-a-cat")
     with mlflow.start_run(run_name=f"resnet50-seed-{cfg.training.seed}"):
         mlflow.log_params(

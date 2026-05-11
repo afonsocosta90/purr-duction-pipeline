@@ -62,6 +62,9 @@ claude.md
 anthropic/
 *.claude
 
+# === Personal / Interview notes ===
+docs/InterviewQA.md
+
 # === Temporary / Generated files ===
 *.tmp
 *.temp
