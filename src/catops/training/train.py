@@ -88,7 +88,9 @@ def train(cfg: DictConfig) -> None:
     try:
         mlflow.set_experiment("am-i-a-cat")
     except Exception as exc:
-        print(f"⚠️  Remote MLflow unavailable ({exc.__class__.__name__}), falling back to local tracking")
+        print(
+            f"⚠️  Remote MLflow unavailable ({exc.__class__.__name__}), falling back to local tracking"
+        )
         mlflow.set_tracking_uri("mlruns")
         mlflow.set_experiment("am-i-a-cat")
     with mlflow.start_run(run_name=f"resnet50-seed-{cfg.training.seed}"):
