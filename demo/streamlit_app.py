@@ -954,6 +954,7 @@ with tab_pipeline:
         st.session_state.drift_log = "Starting drift injection…\n"
         cmd = [
             sys.executable,
+            "-u",
             str(SIMULATE_SCRIPT),
             "--count",
             str(int(drift_count)),
@@ -1040,7 +1041,7 @@ with tab_pipeline:
         st.session_state.retrain_log = "Starting DVC pipeline…\n"
         st.session_state.retrain_done = False
 
-        cmd = ["poetry", "run", "dvc", "repro", "--force"]
+        cmd = [sys.executable, "-m", "dvc", "repro", "--force"]
         with st.spinner("Running DVC pipeline — this may take several minutes…"):
             rc = _stream_subprocess(cmd, PROJECT_ROOT, retrain_log_ph)
 
