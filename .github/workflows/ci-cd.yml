@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      docker: ${{ steps.filter.outputs.docker }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -22,6 +23,11 @@ jobs:
               - 'src/**'
               - 'dvc.yaml'
               - 'configs/**'
+            docker:
+              - 'docker/**'
+              - 'demo/Dockerfile.demo'
+              - 'pyproject.toml'
+              - 'poetry.lock'
 
   quality:
     runs-on: ubuntu-latest
@@ -91,9 +97,9 @@ jobs:
           path: artifacts/
 
   docker:
-    needs: pipeline
+    needs: [quality, changes]
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (needs.changes.outputs.docker == 'true' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
       packages: write
@@ -108,15 +114,30 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.CR_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push Docker image
+      - name: Build & push API image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ghcr.io/${{ github.repository_owner }}/purr-duction-pipeline:latest
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/purr-duction-pipeline:latest
+            ghcr.io/${{ github.repository_owner }}/purr-duction-pipeline:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push Streamlit image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: demo/Dockerfile.demo
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/purr-duction-pipeline-demo:latest
+            ghcr.io/${{ github.repository_owner }}/purr-duction-pipeline-demo:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

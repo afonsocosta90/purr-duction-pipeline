@@ -52,6 +52,7 @@ services:
       context: ..           # project root
       dockerfile: docker/Dockerfile
     image: catops-api:demo
+    pull_policy: never
     container_name: catops-api
     restart: unless-stopped
     ports:
@@ -83,6 +84,7 @@ services:
       context: ..
       dockerfile: demo/Dockerfile.demo
     image: catops-demo:latest
+    pull_policy: never
     container_name: catops-streamlit
     restart: unless-stopped
     ports:

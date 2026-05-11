@@ -53,7 +53,10 @@ monitor: ## Start API + Prometheus + Grafana via docker-compose (Phase 8 stack)
 # Phase 9 — Interactive Demo Stack
 # ─────────────────────────────────────────────────────────────────────────────
 
-demo: ## Build and start full demo (FastAPI + Streamlit + Prometheus + Grafana)
+GHCR_API  := ghcr.io/afonsocosta90/purr-duction-pipeline:latest
+GHCR_DEMO := ghcr.io/afonsocosta90/purr-duction-pipeline-demo:latest
+
+demo: ## Pull pre-built images from GHCR and start full demo (falls back to local build)
 	@echo ""
 	@echo "╔══════════════════════════════════════════════════════════════╗"
 	@echo "║          Am I a Cat? — MLOps Portfolio Demo                 ║"
@@ -62,15 +65,22 @@ demo: ## Build and start full demo (FastAPI + Streamlit + Prometheus + Grafana)
 	@echo "  Clearing previous session logs…"
 	@rm -f monitoring/feedback_log.csv monitoring/inference_log.csv
 	@echo ""
-	@echo "  Step 1/2 — Building API image (catops-api:demo)…"
-	@echo "  (Streamlit image reuses this layer — only built once)"
+	@echo "  Step 1/2 — Fetching API image…"
+	@if docker pull $(GHCR_API) 2>/dev/null; then \
+		docker tag $(GHCR_API) catops-api:demo; \
+	else \
+		echo "  Pre-built image unavailable — building locally…"; \
+		docker compose -f demo/docker-compose.demo.yml build api; \
+	fi
 	@echo ""
-	docker compose -f demo/docker-compose.demo.yml build api
-	@echo ""
-	@echo "  Step 2/2 — Building Streamlit image (reuses API layer) and starting services…"
-	@echo ""
-	docker compose -f demo/docker-compose.demo.yml build streamlit
-	docker compose -f demo/docker-compose.demo.yml up -d
+	@echo "  Step 2/2 — Fetching Streamlit image and starting services…"
+	@if docker pull $(GHCR_DEMO) 2>/dev/null; then \
+		docker tag $(GHCR_DEMO) catops-demo:latest; \
+	else \
+		echo "  Pre-built image unavailable — building locally…"; \
+		docker compose -f demo/docker-compose.demo.yml build streamlit; \
+	fi
+	@docker compose -f demo/docker-compose.demo.yml up -d
 	@echo ""
 	@echo "  ✅ Services are starting. Will be available at:"
 	@echo ""
@@ -88,15 +98,23 @@ demo-down: ## Stop the demo stack
 	@rm -f monitoring/feedback_log.csv monitoring/inference_log.csv
 	@echo "  Session logs cleared."
 
-demo-reset: ## Hard reset — remove containers + volumes, then rebuild from scratch
+demo-reset: ## Hard reset — remove containers + volumes, then pull fresh images (or rebuild locally)
 	@echo "⚠️  This removes all Prometheus and Grafana data volumes."
 	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
 	docker compose -f demo/docker-compose.demo.yml down -v --remove-orphans
 	docker rmi catops-api:demo catops-demo:latest 2>/dev/null || true
-	docker compose -f demo/docker-compose.demo.yml build api
-	docker compose -f demo/docker-compose.demo.yml build streamlit
+	@if docker pull $(GHCR_API) 2>/dev/null; then \
+		docker tag $(GHCR_API) catops-api:demo; \
+	else \
+		docker compose -f demo/docker-compose.demo.yml build api; \
+	fi
+	@if docker pull $(GHCR_DEMO) 2>/dev/null; then \
+		docker tag $(GHCR_DEMO) catops-demo:latest; \
+	else \
+		docker compose -f demo/docker-compose.demo.yml build streamlit; \
+	fi
 	docker compose -f demo/docker-compose.demo.yml up -d
-	@echo "✅ Demo stack rebuilt and running."
+	@echo "✅ Demo stack reset and running."
 
 demo-logs: ## Follow logs from all demo services
 	docker compose -f demo/docker-compose.demo.yml logs -f

@@ -1,218 +1,233 @@
-# Purr-duction Pipeline 🐱
+# Am I a Cat? — MLOps Portfolio Project
 
-**"Am I a Cat?"** — Production-grade MLOps pipeline for binary image classification (Cat vs Not Cat).
+**Binary image classification (Cat vs Not Cat) built as a complete, production-grade MLOps platform.**
 
-A complete end-to-end demonstration of modern MLOps best practices in 2026. This project showcases how to take a simple image classification model from notebook to a fully automated, reproducible, monitored, and deployable production system.
+ResNet50 transfer learning · DVC pipelines · MLflow experiment tracking · FastAPI serving · Evidently AI drift detection · Prometheus + Grafana observability · GitHub Actions CI/CD · Interactive Streamlit demo
 
-## 🎯 Current Project Status
-**Phase 9/9 — Interactive Demo & Portfolio Showcase COMPLETE** ✅  
-All phases delivered. Full closed-loop MLOps system with live UI demo.
-
-**Achieved (all 9 phases):**
-- Full project scaffolding with **Poetry**, **Git**, and **DVC**
-- Modular Python package structure (`src/catops/`) with `data/ingest.py` implemented
-- Automated data ingestion and validation pipeline defined in `dvc.yaml`
-- **7,390 high-quality images** versioned with DVC:
-  - 🐱 2,400 `cat`
-  - 🚫 4,990 `not_cat`
-- Robust production quality gates (file integrity, duplicates, image corruption, class balance)
-- Stratified 70/15/15 train/val/test split locked via DVC
-- Hydra config management (`configs/data.yaml`, `model.yaml`, `training.yaml`)
-- **ResNet50 transfer learning** training stage (modern weights API, split-aware via `CatDataset`)
-- **Full evaluation module** (`evaluate.py`): accuracy, F1, precision, recall, ROC-AUC, confusion matrix + ROC curve artifacts logged to MLflow
-- **Real promotion logic** based on held-out val split metrics (accuracy ≥ 0.94 and F1 ≥ 0.93)
-- Fully reproducible pipeline via `dvc repro`
-- Pre-commit hooks, `.dvcignore`, and best-practice Git workflow
-- **FastAPI serving layer** (`src/catops/serving/`): `/predict`, `/health`, `/metrics` endpoints; lifespan model loading; decompression-bomb guard; content-type validation; per-label Prometheus counters + confidence histogram
-- Docker production image: non-root user, uvicorn multi-worker CMD, model path configurable via env vars
-- **GitHub Actions CI/CD** (`.github/workflows/ci-cd.yml`): lint → test → DVC pull → `dvc repro` → artifact upload → Docker build/push on `workflow_dispatch`
-- **Evidently AI drift detection** (`monitoring/`): per-request pixel-stat logging, daily scheduled drift reports, Prometheus gauge exposure, Slack alerts
-- **Interactive Streamlit demo** (`demo/`): drag-and-drop prediction, feedback submission, one-click synthetic drift injection, live retraining with streaming output, before/after metrics comparison
-
-## 📁 Project Structure
-```bash
-├── configs/                 # Hydra configurations (Phase 3+)
-├── data/                    # DVC-versioned data (raw + processed)
-│   ├── raw.dvc
-│   └── external/
-├── docker/                  # Containerization files
-├── docs/                    # ProjectScope.md + mermaid-diagram.svg
-├── notebooks/               # Exploratory analysis
-├── pipelines/               # DVC pipeline stages
-├── src/catops/              # Main production Python package
-│   ├── data/ingest.py
-│   ├── data/dataset.py      # CatDataset — split-aware CSV loader
-│   ├── features/
-│   ├── evaluation/evaluate.py  # sklearn metrics + MLflow artifacts
-│   ├── serving/
-│   ├── utils/
-│   └── __init__.py
-├── tests/                   # Unit & integration tests
-├── .github/workflows/       # CI/CD pipelines
-├── dvc.yaml                 # Pipeline definition
-├── params.yaml              # Experiment parameters
-├── Makefile                 # Developer commands
-└── pyproject.toml           # Poetry configuration
-`````
-
-## 🛠️ Tech Stack (Current)
-
-| Layer | Technology | Status |
-| :---: | :---: | :---: |
-| Environment | Poetry + Python 3.12 | ✅ Complete |
-| Data Versioning | DVC + Git | ✅ Complete |
-| Pipeline | DVC stages | ✅ Complete |
-| Data Validation | Custom production quality gates | ✅ Complete |
-| Code Quality | pre-commit hooks | ✅ Complete |
-| Containerization | Docker | ✅ Ready |
-| CI/CD | GitHub Actions | ✅ Complete |
-| Config Management | Hydra | ✅ Phase 3 |
-| Training | PyTorch (ResNet50) | ✅ Phase 4 |
-| Evaluation | scikit-learn + matplotlib + seaborn | ✅ Phase 5 |
-| Experiment Tracking | MLflow (full integration) | ✅ Phase 5 |
-| Serving | FastAPI + Prometheus | ✅ Phase 7 |
-| Monitoring | Evidently AI + Prometheus + Grafana | ✅ Phase 8 |
-| Demo UI | Streamlit + Plotly | ✅ Phase 9 |
-
-## 🚀 Quick Start
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/afonsocosta90/purr-duction-pipeline.git
-cd purr-duction-pipeline
-
-# 2. Install dependencies
-make install
-
-# 3. Pull the latest versioned data and run the full pipeline
-poetry run dvc pull
-make pipeline
-
-# 4. Start the API server
-make serve        # FastAPI on http://localhost:3000
-
-# 5. Test the endpoint
-make api-test     # POST a sample cat image, prints JSON prediction
-
-# 6. Scrape Prometheus metrics
-curl http://localhost:3000/metrics
-```
-
-## Development Commands
-
-```bash
-make install        # Install dependencies
-make shell          # Enter Poetry shell
-make test           # Run test suite
-make lint           # Run linters & pre-commit
-make pipeline       # Re-run full DVC pipeline
-make serve          # Start FastAPI server locally (port 3000)
-make api-test       # POST a sample image to /predict and print JSON
-make drift-report   # Run Evidently AI drift detection report
-```
+> 7,390 training images · >94% val accuracy · 9 phases · all complete ✅
 
 ---
 
-## 🎬 Interactive Demo (Phase 9)
-
-One command spins up the complete local demo stack:
+## Live Demo — One Command
 
 ```bash
 make demo
 ```
 
-This builds and launches four services:
+Builds and starts four Docker services:
 
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| 🔮 Streamlit UI | http://localhost:8501 | — |
-| 🚀 FastAPI (Swagger docs) | http://localhost:3000/docs | — |
-| 📊 Grafana dashboards | http://localhost:3001 | admin / catops |
-| 🔥 Prometheus | http://localhost:9090 | — |
-
-### Demo walkthrough
-
-#### Step 1 — Live Prediction
-
-1. Open **http://localhost:8501** in your browser
-2. Switch to the **🔮 Live Prediction** tab
-3. Drag any image from `demo/demo_data/` (or your own) onto the uploader
-4. The ResNet50 model classifies it in ~100 ms — prediction card + confidence gauge appear
-5. Use the radio buttons to submit a **correct label** if the prediction was wrong  
-   → saved to `monitoring/feedback_log.csv` for the retraining loop
-
-#### Step 2 — Inject Synthetic Drift
-
-1. Switch to the **🔄 Pipeline Control** tab
-2. Set the count (default: 50) and click **💉 Inject Drift**  
-   → `demo/simulate_drift.py` fires random-noise, gradient, solid-colour, and blurred
-   images at the `/predict` API, populating `monitoring/inference_log.csv` with
-   out-of-distribution pixel statistics
-3. Watch the **📊 Monitoring** tab — label distribution and avg confidence update live
-
-#### Step 3 — Trigger Retraining
-
-1. Still on **🔄 Pipeline Control**, click **🚀 Retrain Model**  
-   → runs `dvc repro --force` (ingest → validate → features → train → evaluate)  
-   → subprocess output streams live in the log box
-2. When complete, the **Before vs After** metrics table shows the delta in accuracy,
-   F1, precision, recall, and ROC-AUC  
-3. Promotion verdict displayed: ✅ *promoted to staging* (accuracy ≥ 0.94 **and** F1 ≥ 0.93)
-
-#### Step 4 — Grafana Dashboard
-
-Open **http://localhost:3001** (admin / catops) — the *CatOps — Am I a Cat? Live Metrics*
-dashboard is pre-provisioned with:
-
-- Total prediction counter + per-label breakdown
-- Confidence gauge (avg) with red/yellow/green thresholds
-- Time-series: prediction volume, confidence trend, request latency percentiles (p50/p95/p99)
-- Label distribution bar chart + confidence histogram
-
-### Other demo commands
+| Service | URL | Notes |
+|---|---|---|
+| Streamlit UI | http://localhost:8501 | Main demo — start here |
+| FastAPI | http://localhost:3000/docs | Swagger / REST API |
+| Grafana | http://localhost:3001 | Login: `admin` / `catops` |
+| Prometheus | http://localhost:9090 | Raw metrics |
 
 ```bash
-make demo-logs    # Follow all service logs
-make demo-down    # Stop the stack
-make demo-reset   # Hard reset — remove volumes + images, rebuild from scratch
-
-# Deploy to a remote server (requires Docker + SSH)
-DOCKER_HOST=ssh://user@your-server make demo-cloud
+make demo-down    # stop all services (also clears session logs)
+make demo-reset   # hard reset — remove volumes + images, rebuild from scratch
 ```
 
-### Running locally without Docker
+### Requirements
 
-```bash
-# Terminal 1 — FastAPI backend
-make serve
-
-# Terminal 2 — Streamlit UI
-pip install streamlit httpx plotly
-streamlit run demo/streamlit_app.py
-
-# Terminal 3 — Inject drift manually
-python demo/simulate_drift.py --count 50 --api-url http://localhost:3000
-```
-
-### Screenshot / GIF guidance
-
-> Record a GIF with [Kap](https://getkap.co/) (macOS) or [peek](https://github.com/phw/peek) (Linux):
->
-> 1. `make demo` → wait for health checks to pass
-> 2. Open http://localhost:8501
-> 3. Record: upload cat image → submit feedback → inject drift → trigger retrain → show metrics
-> 4. Export as GIF and drop into `docs/demo.gif`
-> 5. Reference in this README: `![Demo](docs/demo.gif)`
+- Docker Desktop running
+- ~4 GB disk space (PyTorch base image)
+- Ports 3000, 3001, 8501, 9090 free
+- **Windows**: `make` is not available natively — run commands from WSL2 or Git Bash
 
 ---
 
-## 📄 CV Bullet Points
+## Demo Walkthrough
 
-The following are polished bullet points suitable for a CV or portfolio:
+### Tab 1 — Live Prediction
 
-- **End-to-end MLOps platform** for binary image classification (ResNet50 + PyTorch) with reproducible DVC pipelines, Hydra config management, and MLflow experiment tracking — 7 390 images, >94% accuracy on held-out test set
+1. Open **http://localhost:8501**
+2. Drag any image from `demo/demo_data/` onto the uploader (or use your own)
+3. The ResNet50 model classifies it in real time — prediction card + confidence gauge appear
+4. Use the radio buttons to submit a **label correction** if the model was wrong
+   → saved to `monitoring/feedback_log.csv` for the retraining loop
+
+Sample images included: `cat_sample_1-3.jpg` and `not_cat_sample_1-2.jpg`
+
+### Tab 2 — Pipeline Control (Closed-Loop Retraining)
+
+**Step 1 — Inject Synthetic Drift**
+
+Click **Inject Drift** — this runs `demo/simulate_drift.py` which fires batches of out-of-distribution images (random noise, colour gradients, solid fills, heavy blur) at the API. Each one is logged to `monitoring/inference_log.csv` with pixel statistics, building up a drift signal.
+
+**Step 2 — Trigger Retraining**
+
+Click **Retrain Model** — this runs `dvc repro --force` end-to-end inside the container:
+
+```
+ingest → validate → features → train → evaluate
+```
+
+Subprocess stdout streams live into the log box. When complete, a before/after metrics table appears showing the delta in accuracy, F1, precision, recall, and ROC-AUC. Promotion verdict: ✅ if `val_accuracy ≥ 0.94` **and** `val_f1 ≥ 0.93`.
+
+### Tab 3 — Monitoring
+
+Live inference stats from `monitoring/inference_log.csv` — label distribution bar chart, avg/min confidence, feedback error rate. Links to Grafana and Prometheus.
+
+### Grafana Dashboard
+
+Open **http://localhost:3001** (admin / catops) — the *CatOps* dashboard is pre-provisioned with:
+- Total prediction counter and per-label breakdown
+- Confidence gauge with red / amber / green thresholds
+- Time-series: prediction volume, confidence trend, latency percentiles (p50 / p95 / p99)
+- Label distribution bar chart and confidence histogram
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Data Pipeline                           │
+│   data/raw/ ──► ingest.py ──► validate.py ──► build_features.py│
+│   (DVC-versioned)           (quality gates)  (stratified split) │
+└─────────────────────────────────┬───────────────────────────────┘
+                                  │
+┌─────────────────────────────────▼───────────────────────────────┐
+│                    Training & Evaluation                         │
+│   CatDataset ──► ResNet50 ──► evaluate.py ──► MLflow registry   │
+│   (split-aware)   (transfer)  (acc·F1·AUC)   (promotion gate)  │
+└─────────────────────────────────┬───────────────────────────────┘
+                                  │
+┌─────────────────────────────────▼───────────────────────────────┐
+│                       Serving & Monitoring                       │
+│   FastAPI /predict ──► inference_logger ──► Evidently AI drift  │
+│   /health · /metrics    (pixel stats CSV)   Prometheus · Grafana│
+└─────────────────────────────────┬───────────────────────────────┘
+                                  │
+┌─────────────────────────────────▼───────────────────────────────┐
+│                        Demo Stack (Phase 9)                      │
+│   Streamlit UI ──► live predict · feedback · drift inject        │
+│                    dvc repro streaming · before/after metrics    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Full architecture diagrams and sequence flows: [docs/Architecture.md](docs/Architecture.md)
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Dependency management | Poetry + Python 3.12 |
+| Data versioning | DVC (Git-like semantics for large files) |
+| Config management | Hydra + OmegaConf |
+| Training | PyTorch 2 · ResNet50 transfer learning |
+| Experiment tracking | MLflow (params, metrics, artifacts, model registry) |
+| Evaluation | scikit-learn · confusion matrix · ROC curve |
+| Serving | FastAPI · Prometheus instrumentation · non-root Docker |
+| CI/CD | GitHub Actions (lint → pipeline → Docker push) |
+| Drift detection | Evidently AI · daily scheduled drift reports · Slack alerts |
+| Observability | Prometheus + Grafana (pre-provisioned dashboard) |
+| Demo UI | Streamlit + Plotly · 4-service Docker Compose stack |
+
+---
+
+## Project Structure
+
+```
+purr-duction-pipeline/
+├── src/catops/
+│   ├── data/          ingest.py · validate.py · dataset.py
+│   ├── features/      build_features.py
+│   ├── training/      train.py
+│   ├── evaluation/    evaluate.py
+│   ├── serving/       service.py · model_utils.py
+│   └── monitoring/    inference_logger.py · drift.py · alerts.py
+├── demo/
+│   ├── streamlit_app.py          Streamlit UI (predict · pipeline · monitoring)
+│   ├── simulate_drift.py         synthetic OOD image injection
+│   ├── Dockerfile.demo           extends API image, adds demo deps
+│   ├── docker-compose.demo.yml   4-service stack
+│   └── demo_data/                sample cat + not_cat images
+├── configs/                      Hydra: model.yaml · training.yaml
+├── data/                         DVC-versioned raw + processed images
+├── models/                       best_model.pt (DVC output)
+├── monitoring/                   inference_log.csv · baseline_stats.csv
+├── .github/workflows/            ci-cd.yml · drift.yml (daily 08:00 UTC)
+├── dvc.yaml                      pipeline stage definitions
+├── Makefile                      all developer commands
+└── pyproject.toml                Poetry deps (includes demo group)
+```
+
+---
+
+## Development
+
+### Prerequisites
+
+```bash
+# Install dependencies (includes demo group: streamlit, httpx, plotly)
+make install
+
+# Pull DVC-versioned data
+poetry run dvc pull
+
+# Run full pipeline
+make pipeline
+```
+
+### Common commands
+
+```bash
+make serve          # FastAPI on http://localhost:3000 (local, no Docker)
+make api-test       # POST a sample cat image, print JSON prediction
+make test           # pytest
+make lint           # ruff + black check
+make drift-report   # run Evidently AI drift check against inference log
+make demo-logs      # follow all demo service logs
+```
+
+### Run demo UI locally without Docker
+
+```bash
+# Terminal 1
+make serve
+
+# Terminal 2
+poetry install --with demo
+poetry run streamlit run demo/streamlit_app.py
+
+# Optional: inject drift manually
+poetry run python demo/simulate_drift.py --count 50 --api-url http://localhost:3000
+```
+
+### Deploy demo to a remote server
+
+```bash
+DOCKER_HOST=ssh://user@your-server make demo-cloud
+```
+
+---
+
+## Pipeline Stages
+
+The full pipeline is defined in `dvc.yaml` and runs with `make pipeline` or `dvc repro`:
+
+| Stage | Input | Output |
+|---|---|---|
+| `ingest` | `data/raw/images/` | `data/processed/cat/` + `not_cat/` |
+| `validate` | processed images | `metadata.csv` · quality gates |
+| `features` | `metadata.csv` | `train/val/test.csv` · `features_config.json` |
+| `train` | split CSVs + configs | `models/best_model.pt` · MLflow run |
+| `evaluate` | `best_model.pt` + val split | `artifacts/` (confusion matrix · ROC curve) |
+
+Promotion gate: `val_accuracy ≥ 0.94` **and** `val_f1 ≥ 0.93` → model tagged `staging` in MLflow registry.
+
+Data labelling convention: filename starting with an uppercase letter → `cat`, lowercase → `not_cat`. See [docs/HowToAddData.md](docs/HowToAddData.md).
+
+---
+
+## CV Bullet Points
+
+- **End-to-end MLOps platform** for binary image classification (ResNet50 + PyTorch) with reproducible DVC pipelines, Hydra config management, and MLflow experiment tracking — 7,390 images, >94% accuracy on held-out validation set
 - **Production FastAPI serving layer** with Prometheus instrumentation, non-root Docker image, and GitHub Actions CI/CD (lint → DVC pipeline → artifact upload → GHCR push) running on every commit
 - **Automated drift detection** with Evidently AI: per-request pixel-stat logging (GDPR-safe MD5 hashing), daily scheduled drift reports, Prometheus gauge updates, and Slack alerts on confidence drop
-- **Interactive Streamlit demo** delivering a closed-loop retraining experience: drag-and-drop prediction, feedback submission, synthetic drift injection, live `dvc repro` streaming, and before/after metric comparison — full stack launched with a single `make demo` command
-- **Full observability stack**: pre-provisioned Grafana dashboard with label distribution, confidence histogram, and p50/p95/p99 latency panels; Prometheus metrics scraping; zero manual configuration required
-
+- **Interactive Streamlit demo** delivering a closed-loop retraining experience: drag-and-drop prediction, human feedback submission, synthetic drift injection, live `dvc repro` log streaming, and before/after metric comparison — full 4-service stack launched with a single `make demo`
+- **Full observability stack**: pre-provisioned Grafana dashboard with label distribution, confidence histogram, and p50/p95/p99 latency panels; zero manual configuration required
