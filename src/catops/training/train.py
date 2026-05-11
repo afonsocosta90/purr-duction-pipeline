@@ -74,6 +74,7 @@ def train(cfg: DictConfig) -> None:
     epochs = 1 if os.environ.get("CI") == "true" else cfg.training.epochs
 
     # MLflow
+    mlflow.set_tracking_uri("./tracking")
     mlflow.set_experiment("am-i-a-cat")
     with mlflow.start_run(run_name=f"resnet50-seed-{cfg.training.seed}"):
         mlflow.log_params(

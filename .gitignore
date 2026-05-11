@@ -37,6 +37,7 @@ artifacts/
 
 # === Experiment tracking & logs ===
 mlruns/
+tracking/
 wandb/
 lightning_logs/
 *.log

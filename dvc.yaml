@@ -38,3 +38,19 @@ stages:
       - data/processed/features_config.json
     outs:
       - models/best_model.pt
+      - models/model_config.json
+
+  evaluate:
+    cmd: python -m src.catops.evaluation.evaluate
+    deps:
+      - src/catops/evaluation/evaluate.py
+      - models/best_model.pt
+      - models/model_config.json
+      - data/processed/test.csv
+      - data/processed/features_config.json
+      - configs/config.yaml
+      - configs/training.yaml
+      - configs/model.yaml
+    outs:
+      - artifacts/confusion_matrix_test.png
+      - artifacts/roc_curve_test.png

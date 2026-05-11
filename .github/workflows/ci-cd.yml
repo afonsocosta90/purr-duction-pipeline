@@ -21,7 +21,6 @@ jobs:
             code:
               - 'src/**'
               - 'dvc.yaml'
-              - 'params.yaml'
               - 'configs/**'
 
   quality:

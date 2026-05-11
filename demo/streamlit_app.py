@@ -418,7 +418,7 @@ def _inference_stats() -> dict:
 
 
 def _load_mlflow_metrics() -> dict | None:
-    mlruns = PROJECT_ROOT / "mlruns"
+    mlruns = PROJECT_ROOT / "tracking"
     if not mlruns.exists():
         return None
     try:

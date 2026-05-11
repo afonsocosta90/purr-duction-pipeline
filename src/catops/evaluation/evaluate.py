@@ -143,6 +143,31 @@ def evaluate_model(
     return metrics
 
 
-# For standalone testing
 if __name__ == "__main__":
-    print("✅ Evaluation module ready for import from train.py")
+    import torch.nn as nn
+    import hydra
+    from omegaconf import DictConfig as _DictConfig
+    from torchvision import models as tv_models
+
+    @hydra.main(config_path="../../../configs", config_name="config", version_base=None)
+    def _main(cfg: _DictConfig) -> None:
+        mlflow.set_tracking_uri("./tracking")
+        mlflow.set_experiment("am-i-a-cat")
+
+        model_cfg = json.loads(Path("models/model_config.json").read_text())
+        base = tv_models.resnet50(weights=None)
+        base.fc = nn.Sequential(
+            nn.Dropout(model_cfg["dropout"]),
+            nn.Linear(base.fc.in_features, model_cfg["num_classes"]),
+        )
+        device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+        base.load_state_dict(
+            torch.load("models/best_model.pt", map_location=device, weights_only=True)
+        )
+        base = base.to(device)
+        base.eval()
+
+        with mlflow.start_run(run_name="evaluate-test"):
+            evaluate_model(base, cfg, Path("data/processed"), split="test")
+
+    _main()
