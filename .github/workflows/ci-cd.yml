@@ -82,6 +82,10 @@ jobs:
         run: poetry run dvc pull
 
       - name: Reproduce full pipeline
+        env:
+          MLFLOW_TRACKING_URI: https://dagshub.com/afonsocosta90/purr-duction-pipeline.mlflow
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USER }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: poetry run make pipeline
 
       - name: Upload model artifact

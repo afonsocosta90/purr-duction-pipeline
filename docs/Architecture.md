@@ -156,7 +156,7 @@ sequenceDiagram
     participant DS as CatDataset
     participant Train as train.py
     participant Eval as evaluate.py
-    participant MLflow
+    participant MLflow as MLflow (DagsHub)
 
     DVC->>Train: run stage: train (depends on features)
     Train->>Hydra: load configs/config.yaml (model + training)
@@ -464,7 +464,14 @@ features → train (depends on: train.py, evaluate.py, dataset.py, feature CSVs,
 |-----|-------|
 | `drift` | Install deps → `make drift-report` → upload `monitoring/drift_report.html` as artifact → alert if drift detected |
 
-**Secrets required**: `DAGSHUB_USER`, `DAGSHUB_TOKEN` (DVC remote auth) · `SLACK_WEBHOOK_URL` (Phase 8 alerts).
+**Secrets required**: `DAGSHUB_USER`, `DAGSHUB_TOKEN` (DVC remote + MLflow auth) · `SLACK_WEBHOOK_URL` (Phase 8 alerts).
+
+**MLflow environment variables** (set automatically in the `pipeline` job):
+- `MLFLOW_TRACKING_URI` → `https://dagshub.com/afonsocosta90/purr-duction-pipeline.mlflow`
+- `MLFLOW_TRACKING_USERNAME` → `DAGSHUB_USER` secret
+- `MLFLOW_TRACKING_PASSWORD` → `DAGSHUB_TOKEN` secret
+
+For local development, export these or omit to use the DagsHub URI unauthenticated (read-only public).
 
 ### 5.6 Monitoring & Drift Detection (Phase 8 — ✅ implemented)
 
@@ -600,7 +607,7 @@ Pre-provisioned *CatOps — Am I a Cat? Live Metrics* dashboard with:
 | Config management   | Hydra + OmegaConf             | ✅ Active | Multi-run, sweepable configs |
 | Training            | PyTorch 2 + TorchVision       | ✅ Active | ResNet50 transfer learning, split-aware CatDataset |
 | Evaluation          | scikit-learn + matplotlib + seaborn | ✅ Active | Full classification metrics + confusion matrix + ROC curve |
-| Experiment tracking | MLflow                        | ✅ Active | Run tracking, artifact logging, model promotion |
+| Experiment tracking | MLflow (DagsHub remote)       | ✅ Active | Run tracking, artifact logging, model promotion; tracking URI via `MLFLOW_TRACKING_URI` env var |
 | Serving             | FastAPI + Prometheus          | ✅ Active | Async inference, Prometheus metrics, non-root Docker |
 | Containerisation    | Docker                        | ✅ Active | Non-root user, uvicorn multi-worker CMD |
 | CI/CD               | GitHub Actions                | ✅ Active | quality → pipeline → docker jobs; DagsHub DVC remote |

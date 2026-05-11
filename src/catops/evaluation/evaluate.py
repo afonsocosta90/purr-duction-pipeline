@@ -5,6 +5,7 @@
 - Returns metrics dict for promotion logic + tracking
 """
 
+import os
 from pathlib import Path
 import json
 from typing import Dict
@@ -151,7 +152,12 @@ if __name__ == "__main__":
 
     @hydra.main(config_path="../../../configs", config_name="config", version_base=None)
     def _main(cfg: _DictConfig) -> None:
-        mlflow.set_tracking_uri("./tracking")
+        mlflow.set_tracking_uri(
+            os.environ.get(
+                "MLFLOW_TRACKING_URI",
+                "https://dagshub.com/afonsocosta90/purr-duction-pipeline.mlflow",
+            )
+        )
         mlflow.set_experiment("am-i-a-cat")
 
         model_cfg = json.loads(Path("models/model_config.json").read_text())
