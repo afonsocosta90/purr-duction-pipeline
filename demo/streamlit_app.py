@@ -35,9 +35,7 @@ from PIL import Image
 # ─────────────────────────────────────────────────────────────────────────────
 
 API_URL: str = os.getenv("API_URL", "http://localhost:3000")
-PROJECT_ROOT: Path = Path(
-    os.getenv("PROJECT_ROOT", str(Path(__file__).parent.parent))
-)
+PROJECT_ROOT: Path = Path(os.getenv("PROJECT_ROOT", str(Path(__file__).parent.parent)))
 GRAFANA_URL: str = os.getenv("GRAFANA_URL", "http://localhost:3001")
 FEEDBACK_LOG: Path = PROJECT_ROOT / "monitoring" / "feedback_log.csv"
 INFERENCE_LOG: Path = PROJECT_ROOT / "monitoring" / "inference_log.csv"
@@ -360,7 +358,9 @@ _init_state()
 def _api_health() -> tuple[bool, str]:
     try:
         r = httpx.get(f"{API_URL}/health", timeout=3.0)
-        return r.status_code == 200, "Healthy" if r.status_code == 200 else f"HTTP {r.status_code}"
+        return r.status_code == 200, (
+            "Healthy" if r.status_code == 200 else f"HTTP {r.status_code}"
+        )
     except httpx.ConnectError:
         return False, "Unreachable"
     except Exception as exc:
@@ -493,7 +493,7 @@ def _confidence_gauge(confidence: float, label: str) -> go.Figure:
                 "bgcolor": SURFACE_2,
                 "borderwidth": 0,
                 "steps": [
-                    {"range": [0, 50],  "color": "rgba(239,68,68,0.12)"},
+                    {"range": [0, 50], "color": "rgba(239,68,68,0.12)"},
                     {"range": [50, 80], "color": "rgba(245,158,11,0.10)"},
                     {"range": [80, 100], "color": "rgba(6,214,160,0.10)"},
                 ],
@@ -532,7 +532,9 @@ def _label_bar_chart(label_counts: dict) -> go.Figure:
         height=260,
         margin=dict(t=10, b=10, l=20, r=20),
         xaxis=dict(showgrid=False, tickfont=dict(color=TEXT_SECONDARY)),
-        yaxis=dict(showgrid=True, gridcolor=BORDER, tickfont=dict(color=TEXT_SECONDARY)),
+        yaxis=dict(
+            showgrid=True, gridcolor=BORDER, tickfont=dict(color=TEXT_SECONDARY)
+        ),
         **_PLOTLY_DARK,
     )
     return fig
@@ -599,7 +601,7 @@ with st.sidebar:
     st.markdown(
         f'<div style="font-size:0.72rem; color:{TEXT_SECONDARY}; margin-top:-0.4rem;">'
         f'Predictions below <b style="color:{WARNING}">{confidence_threshold:.0%}</b> '
-        f'flagged as uncertain</div>',
+        f"flagged as uncertain</div>",
         unsafe_allow_html=True,
     )
 
@@ -682,7 +684,7 @@ with tab_predict:
     with col_upload:
         st.markdown(
             f'<div style="font-weight:600; color:{TEXT_PRIMARY}; margin-bottom:0.5rem;">'
-            '📁 Upload Image</div>',
+            "📁 Upload Image</div>",
             unsafe_allow_html=True,
         )
         uploaded_file = st.file_uploader(
@@ -710,7 +712,7 @@ with tab_predict:
             if not healthy:
                 st.markdown(
                     '<div class="warning-banner">⚠️ API is offline — start it with '
-                    '<code>make serve</code> or <code>make demo</code></div>',
+                    "<code>make serve</code> or <code>make demo</code></div>",
                     unsafe_allow_html=True,
                 )
             elif st.session_state.last_prediction is None:
@@ -730,7 +732,9 @@ with tab_predict:
                             }
                         )
                     except httpx.HTTPStatusError as exc:
-                        st.error(f"API error {exc.response.status_code}: {exc.response.text[:200]}")
+                        st.error(
+                            f"API error {exc.response.status_code}: {exc.response.text[:200]}"
+                        )
                     except Exception as exc:
                         st.error(f"Prediction failed: {exc}")
         else:
@@ -844,7 +848,9 @@ with tab_predict:
                 if correct_label == label:
                     st.success("✅ Confirmed — thanks for the validation!")
                 else:
-                    st.info(f"📝 Correction recorded: **{label}** → **{correct_label}**")
+                    st.info(
+                        f"📝 Correction recorded: **{label}** → **{correct_label}**"
+                    )
             else:
                 btn_label = (
                     "✅ Confirm correct"
@@ -949,16 +955,21 @@ with tab_pipeline:
         cmd = [
             sys.executable,
             str(SIMULATE_SCRIPT),
-            "--count", str(int(drift_count)),
-            "--api-url", API_URL,
-            "--output-log", str(INFERENCE_LOG),
+            "--count",
+            str(int(drift_count)),
+            "--api-url",
+            API_URL,
+            "--output-log",
+            str(INFERENCE_LOG),
         ]
         with st.spinner(f"Injecting {int(drift_count)} synthetic images…"):
             rc = _stream_subprocess(cmd, PROJECT_ROOT, drift_log_ph)
 
         if rc == 0:
             st.session_state.drift_injected = True
-            st.success(f"✅ Drift injection complete — {int(drift_count)} images sent to API.")
+            st.success(
+                f"✅ Drift injection complete — {int(drift_count)} images sent to API."
+            )
         else:
             st.error(f"⛔ Injection failed (exit code {rc}) — check the log above.")
         st.rerun()
@@ -969,7 +980,11 @@ with tab_pipeline:
 
     step2_locked = not step1_done
     step2_done = st.session_state.retrain_done
-    step2_badge = "step-done" if step2_done else ("step-active" if not step2_locked else "step-locked")
+    step2_badge = (
+        "step-done"
+        if step2_done
+        else ("step-active" if not step2_locked else "step-locked")
+    )
     step2_icon = "✓" if step2_done else "2"
 
     st.markdown(
@@ -1060,11 +1075,11 @@ with tab_pipeline:
         after = st.session_state.after_metrics or {}
 
         KEY_METRICS = [
-            ("val_accuracy",  "Accuracy",  0.94),
-            ("val_f1",        "F1 Score",  0.93),
+            ("val_accuracy", "Accuracy", 0.94),
+            ("val_f1", "F1 Score", 0.93),
             ("val_precision", "Precision", None),
-            ("val_recall",    "Recall",    None),
-            ("val_roc_auc",   "ROC-AUC",   None),
+            ("val_recall", "Recall", None),
+            ("val_roc_auc", "ROC-AUC", None),
         ]
 
         col_b, col_a = st.columns(2, gap="medium")
@@ -1072,7 +1087,7 @@ with tab_pipeline:
         with col_b:
             st.markdown(
                 f'<div style="font-weight:600; color:{TEXT_SECONDARY}; '
-                f'font-size:0.85rem; margin-bottom:0.6rem; text-transform:uppercase; '
+                f"font-size:0.85rem; margin-bottom:0.6rem; text-transform:uppercase; "
                 f'letter-spacing:0.05em;">Before Retraining</div>',
                 unsafe_allow_html=True,
             )
@@ -1083,14 +1098,14 @@ with tab_pipeline:
                     f'<div class="metric-row">'
                     f'<span class="metric-label">{display}</span>'
                     f'<span class="metric-value">{disp}</span>'
-                    f'</div>',
+                    f"</div>",
                     unsafe_allow_html=True,
                 )
 
         with col_a:
             st.markdown(
                 f'<div style="font-weight:600; color:{TEAL}; '
-                f'font-size:0.85rem; margin-bottom:0.6rem; text-transform:uppercase; '
+                f"font-size:0.85rem; margin-bottom:0.6rem; text-transform:uppercase; "
                 f'letter-spacing:0.05em;">After Retraining</div>',
                 unsafe_allow_html=True,
             )
@@ -1103,27 +1118,31 @@ with tab_pipeline:
                 if v_a is not None and v_b is not None:
                     diff = v_a - v_b
                     sign = "+" if diff >= 0 else ""
-                    delta_cls = "delta-up" if diff > 0 else ("delta-down" if diff < 0 else "delta-flat")
+                    delta_cls = (
+                        "delta-up"
+                        if diff > 0
+                        else ("delta-down" if diff < 0 else "delta-flat")
+                    )
                     delta_html = f'<span class="{delta_cls}">  {sign}{diff:.4f}</span>'
 
                 gate_html = ""
                 if gate is not None and v_a is not None:
-                    gate_html = (
-                        f'<span style="margin-left:0.4rem;">{"✅" if v_a >= gate else "❌"}</span>'
-                    )
+                    gate_html = f'<span style="margin-left:0.4rem;">{"✅" if v_a >= gate else "❌"}</span>'
 
                 st.markdown(
                     f'<div class="metric-row">'
                     f'<span class="metric-label">{display}</span>'
                     f'<span class="metric-value">{disp}{delta_html}{gate_html}</span>'
-                    f'</div>',
+                    f"</div>",
                     unsafe_allow_html=True,
                 )
 
         # Promotion verdict
         promoted = (
-            after.get("val_accuracy", 0) >= 0.94 and after.get("val_f1", 0) >= 0.93
-        ) if after else False
+            (after.get("val_accuracy", 0) >= 0.94 and after.get("val_f1", 0) >= 0.93)
+            if after
+            else False
+        )
 
         if after:
             if promoted:
@@ -1184,7 +1203,9 @@ with tab_monitor:
     with col_g:
         st.link_button("📊 Open Grafana ↗", GRAFANA_URL, use_container_width=True)
     with col_p:
-        st.link_button("🔥 Prometheus ↗", "http://localhost:9090", use_container_width=True)
+        st.link_button(
+            "🔥 Prometheus ↗", "http://localhost:9090", use_container_width=True
+        )
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -1210,7 +1231,11 @@ with tab_monitor:
         st.metric("Min Confidence", f"{min_conf:.1%}" if min_conf is not None else "—")
     with col4:
         error_rate = f"{mismatch_fb/total_fb:.0%}" if total_fb else "—"
-        st.metric("Feedback Error Rate", error_rate, delta=f"{mismatch_fb} corrections" if mismatch_fb else None)
+        st.metric(
+            "Feedback Error Rate",
+            error_rate,
+            delta=f"{mismatch_fb} corrections" if mismatch_fb else None,
+        )
 
     # Label distribution chart
     if stats["rows"] > 0 and "label_counts" in stats:
@@ -1239,8 +1264,14 @@ with tab_monitor:
     if INFERENCE_LOG.exists() and stats["rows"] > 0:
         df_log = pd.read_csv(INFERENCE_LOG).tail(20)
         # Format numeric columns
-        for col in ["pixel_mean_r", "pixel_mean_g", "pixel_mean_b",
-                    "pixel_std_r", "pixel_std_g", "pixel_std_b"]:
+        for col in [
+            "pixel_mean_r",
+            "pixel_mean_g",
+            "pixel_mean_b",
+            "pixel_std_r",
+            "pixel_std_g",
+            "pixel_std_b",
+        ]:
             if col in df_log.columns:
                 df_log[col] = df_log[col].map("{:.1f}".format)
         if "confidence" in df_log.columns:
