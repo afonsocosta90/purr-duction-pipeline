@@ -93,10 +93,58 @@ stages:
       size: 264
     - path: src/catops/training/train.py
       hash: md5
-      md5: 37ded12d4e67de46226017fa8c42d5ca
-      size: 4612
+      md5: fb4800e894d179030037883d579bd968
+      size: 5043
     outs:
     - path: models/best_model.pt
       hash: md5
       md5: e57ff570dd900e32be19847e6f49e085
       size: 94363089
+    - path: models/model_config.json
+      hash: md5
+      md5: a7c47b3949ae2505c4236c57898281fe
+      size: 34
+  evaluate:
+    cmd: python -m src.catops.evaluation.evaluate
+    deps:
+    - path: configs/config.yaml
+      hash: md5
+      md5: 66a67bcbcbfa24fa9c80257238ec544c
+      size: 156
+    - path: configs/model.yaml
+      hash: md5
+      md5: f06a34858a078b443ce04af992343e2b
+      size: 98
+    - path: configs/training.yaml
+      hash: md5
+      md5: e01f5b138582c46a1877da08c52032b8
+      size: 233
+    - path: data/processed/features_config.json
+      hash: md5
+      md5: 3a1145f9ec020db6fb5facf96ddbc521
+      size: 264
+    - path: data/processed/test.csv
+      hash: md5
+      md5: e1f7c646851d2dbe80727db5124086f5
+      size: 37347
+    - path: models/best_model.pt
+      hash: md5
+      md5: e57ff570dd900e32be19847e6f49e085
+      size: 94363089
+    - path: models/model_config.json
+      hash: md5
+      md5: a7c47b3949ae2505c4236c57898281fe
+      size: 34
+    - path: src/catops/evaluation/evaluate.py
+      hash: md5
+      md5: f20ab3b0c0dab1c8990afb3d414de800
+      size: 5541
+    outs:
+    - path: artifacts/confusion_matrix_test.png
+      hash: md5
+      md5: 505a76040934ba48d19f6dfb9c66a62e
+      size: 18999
+    - path: artifacts/roc_curve_test.png
+      hash: md5
+      md5: bb7edfe924d06dcb0d8dee5941e3a02d
+      size: 28797
