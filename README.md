@@ -35,6 +35,17 @@ make demo-reset   # hard reset — remove volumes + images, rebuild from scratch
 - Ports 3000, 3001, 8501, 9090 free
 - **Windows**: `make` is not available natively — run commands from WSL2 or Git Bash
 
+> **Model checkpoint:** `models/best_model.pt` is not tracked in git. Download it before running `make demo`:
+>
+> ```bash
+> curl -L -o models/best_model.pt \
+>   https://github.com/afonsocosta90/purr-duction-pipeline/releases/download/v1.0/best_model.pt
+> ```
+>
+> SHA256: `270277f8ee0035b8d4ee1fcc74e4b178e2641b48a7078b3409c72c7724eadd51`
+>
+> Alternatively, run the full training pipeline from scratch: `make pipeline` (requires DVC data — see Development below).
+
 ---
 
 ## Demo Walkthrough
