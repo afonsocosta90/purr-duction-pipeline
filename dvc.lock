@@ -77,28 +77,28 @@ stages:
     deps:
     - path: configs/config.yaml
       hash: md5
-      md5: 66a67bcbcbfa24fa9c80257238ec544c
-      size: 156
+      md5: 1cfaf240e4739a285f44687d300081fd
+      size: 162
     - path: configs/model.yaml
       hash: md5
-      md5: f06a34858a078b443ce04af992343e2b
-      size: 98
+      md5: 4288c8ff6f31a3bf78beb9fd010d28a1
+      size: 104
     - path: configs/training.yaml
       hash: md5
-      md5: e01f5b138582c46a1877da08c52032b8
-      size: 233
+      md5: 60c73a05090974edce1640bc653aab31
+      size: 246
     - path: data/processed/features_config.json
       hash: md5
-      md5: 3a1145f9ec020db6fb5facf96ddbc521
-      size: 264
+      md5: e1637c7d7e8f86855820136e727f34a5
+      size: 285
     - path: src/catops/training/train.py
       hash: md5
-      md5: fb4800e894d179030037883d579bd968
-      size: 5043
+      md5: a164ec63b06a1ec617fbc38106a70960
+      size: 6442
     outs:
     - path: models/best_model.pt
       hash: md5
-      md5: e57ff570dd900e32be19847e6f49e085
+      md5: 7c1735890a1f58edaf0f2063f7d6cbf9
       size: 94363089
     - path: models/model_config.json
       hash: md5
@@ -109,27 +109,27 @@ stages:
     deps:
     - path: configs/config.yaml
       hash: md5
-      md5: 66a67bcbcbfa24fa9c80257238ec544c
-      size: 156
+      md5: 1cfaf240e4739a285f44687d300081fd
+      size: 162
     - path: configs/model.yaml
       hash: md5
-      md5: f06a34858a078b443ce04af992343e2b
-      size: 98
+      md5: 4288c8ff6f31a3bf78beb9fd010d28a1
+      size: 104
     - path: configs/training.yaml
       hash: md5
-      md5: e01f5b138582c46a1877da08c52032b8
-      size: 233
+      md5: 60c73a05090974edce1640bc653aab31
+      size: 246
     - path: data/processed/features_config.json
       hash: md5
-      md5: 3a1145f9ec020db6fb5facf96ddbc521
-      size: 264
+      md5: e1637c7d7e8f86855820136e727f34a5
+      size: 285
     - path: data/processed/test.csv
       hash: md5
-      md5: e1f7c646851d2dbe80727db5124086f5
-      size: 37347
+      md5: c469bbbf04bd3a8ac7eb66dc13c5645f
+      size: 50831
     - path: models/best_model.pt
       hash: md5
-      md5: e57ff570dd900e32be19847e6f49e085
+      md5: 7c1735890a1f58edaf0f2063f7d6cbf9
       size: 94363089
     - path: models/model_config.json
       hash: md5
@@ -137,14 +137,14 @@ stages:
       size: 34
     - path: src/catops/evaluation/evaluate.py
       hash: md5
-      md5: f20ab3b0c0dab1c8990afb3d414de800
-      size: 5541
+      md5: 8217b388e23c1b46a577eb5848647764
+      size: 5730
     outs:
     - path: artifacts/confusion_matrix_test.png
       hash: md5
-      md5: 505a76040934ba48d19f6dfb9c66a62e
-      size: 18999
+      md5: a0ab88fb7b8a1bcf75f879a62f881efa
+      size: 17967
     - path: artifacts/roc_curve_test.png
       hash: md5
-      md5: bb7edfe924d06dcb0d8dee5941e3a02d
-      size: 28797
+      md5: 5968f0fa2a0d3a0b2aa6ad6bf113dd7d
+      size: 29286
