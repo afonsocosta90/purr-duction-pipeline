@@ -110,6 +110,77 @@ Open **http://localhost:3001** (admin / catops) — the *CatOps* dashboard is pr
 
 ---
 
+## Project KPIs
+
+*Numbers below are verified against the codebase — not aspirational targets.*
+
+### At a glance
+
+| Metric              | Value                          |
+|---------------------|--------------------------------|
+| Dataset images      | 7,390 (Oxford-IIIT Pet)        |
+| Val accuracy gate   | ≥ 94 %                         |
+| DVC pipeline stages | 5                              |
+| API endpoints       | 5 (3 public + 2 internal)      |
+| Grafana panels      | 11                             |
+| Production code     | ~1,466 LOC across 13 modules   |
+
+### Data & model
+
+| Metric                   | Value                                            |
+|--------------------------|--------------------------------------------------|
+| Images                   | 7,390 — Oxford-IIIT Pet (cat vs. dog)            |
+| Classes                  | 2 (`cat`, `not_cat`)                             |
+| Train / val / test split | 70 / 15 / 15 (stratified, seed 42)               |
+| Input size               | 224 × 224, ImageNet normalisation                |
+| Architecture             | ResNet50 (`IMAGENET1K_V1`) + dropout 0.2         |
+| Promotion gate           | `val_accuracy ≥ 0.94` ∧ `val_f1 ≥ 0.93`          |
+
+### Pipeline & quality gates
+
+| Metric                | Value                                                                              |
+|-----------------------|------------------------------------------------------------------------------------|
+| DVC stages            | 5 (ingest → validate → features → train → evaluate)                                |
+| Validation gates      | 4 pre-split + 1 stratification leak check                                          |
+| Hydra configs         | 4 (`config` / `data` / `model` / `training`)                                       |
+| Determinism           | fixed seed + cached stages — `dvc repro` is a no-op when inputs are unchanged      |
+
+### Serving
+
+| Metric                 | Value                                                                              |
+|------------------------|------------------------------------------------------------------------------------|
+| FastAPI endpoints      | 5 — 3 public (`/predict`, `/health`, `/metrics`) + 2 internal                      |
+| Accepted content types | 4 (`image/jpeg`, `image/png`, `image/webp`, `image/gif`)                           |
+| Upload guards          | 10 MB size limit + 4 MP decompression-bomb cap                                     |
+| Custom Prom metrics    | 3 (`catops_predictions_total`, `catops_prediction_confidence`, `catops_drift_score`) |
+| Auto-instrumented      | HTTP latency / request counters via `prometheus-fastapi-instrumentator`            |
+| Container hardening    | non-root user (uid 1001), uvicorn 2-worker                                         |
+
+### Monitoring & drift
+
+| Metric                | Value                                                                              |
+|-----------------------|------------------------------------------------------------------------------------|
+| Inference log columns | 10 (timestamp · MD5 hash · 3×RGB mean · 3×RGB std · label · confidence) — **no raw image is ever stored** (GDPR-safe) |
+| Drift detector        | Evidently AI `DataDriftPreset`, scheduled daily 08:00 UTC                          |
+| Drift thresholds      | drift score > 0.5 **or** rolling confidence < 0.80 (window 200, min 50 samples)    |
+| Dashboard             | 11-panel Grafana *CatOps* board (label distribution · confidence histogram · p50/p95/p99 latency) |
+| Alerting              | Slack webhook + uploaded `drift_report.html` artifact                              |
+
+### CI/CD & engineering
+
+| Metric                 | Value                                                                              |
+|------------------------|------------------------------------------------------------------------------------|
+| GH Actions workflows   | 2 (`ci-cd.yml` + scheduled `drift.yml`)                                            |
+| CI/CD jobs             | 4 (`changes` / `quality` / `pipeline` / `docker`)                                  |
+| Path-filter categories | 2 (`code` · `docker`) — `pipeline` / `docker` jobs only run on relevant changes    |
+| Code quality           | ruff + black + mypy + 3 DVC pre-commit hooks                                       |
+| Smoke tests            | 4 (structure · configs · `dvc.yaml` · processed splits)                            |
+| Demo stack             | 4 services + 3 Streamlit tabs + 4 cross-platform launchers (`make demo`, `demo.cmd`, `demo.sh`, `python demo/launch.py`) |
+| Production code        | ~1,466 LOC across 13 modules in `src/catops/`                                      |
+| Repo activity          | 83 commits on `main`, 9 phases delivered                                           |
+
+---
+
 ## Architecture
 
 ```
@@ -252,13 +323,3 @@ The full pipeline is defined in `dvc.yaml` and runs with `make pipeline` or `dvc
 Promotion gate: `val_accuracy ≥ 0.94` **and** `val_f1 ≥ 0.93` → model tagged `staging` in MLflow registry.
 
 Data labelling convention: filename starting with an uppercase letter → `cat`, lowercase → `not_cat`. See [docs/HowToAddData.md](docs/HowToAddData.md).
-
----
-
-## CV Bullet Points
-
-- **End-to-end MLOps platform** for binary image classification (ResNet50 + PyTorch) with reproducible DVC pipelines, Hydra config management, and MLflow experiment tracking — 7,390 images, >94% accuracy on held-out validation set
-- **Production FastAPI serving layer** with Prometheus instrumentation, non-root Docker image, and GitHub Actions CI/CD (lint → DVC pipeline → artifact upload → GHCR push) running on every commit
-- **Automated drift detection** with Evidently AI: per-request pixel-stat logging (GDPR-safe MD5 hashing), daily scheduled drift reports, Prometheus gauge updates, and Slack alerts on confidence drop
-- **Interactive Streamlit demo** delivering a closed-loop retraining experience: drag-and-drop prediction, human feedback submission, synthetic drift injection, live `dvc repro` log streaming, and before/after metric comparison — full 4-service stack launched with a single `make demo`
-- **Full observability stack**: pre-provisioned Grafana dashboard with label distribution, confidence histogram, and p50/p95/p99 latency panels; zero manual configuration required
