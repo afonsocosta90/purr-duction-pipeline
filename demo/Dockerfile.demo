@@ -8,7 +8,8 @@
 # Requires catops-api:demo to be built first.  The Makefile `demo` target
 # handles this ordering explicitly.
 
-FROM catops-api:demo
+ARG BASE_IMAGE=catops-api:demo
+FROM ${BASE_IMAGE}
 
 # Switch to root briefly to install demo group packages via Poetry
 # (versions are governed by poetry.lock — no manual pip pins needed)

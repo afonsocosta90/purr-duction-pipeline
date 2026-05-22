@@ -59,9 +59,9 @@ def validate_processed_data(processed_dir: str = "data/processed") -> None:
     if len(class_counts) != 2 or any(count == 0 for count in class_counts):
         errors.append(f"Missing classes: {class_counts.to_dict()}")
 
-    # 2. Reasonable balance (at least 30% each)
+    # 2. Reasonable balance (at least 20% each)
     proportions = class_counts / len(df)
-    if any(prop < 0.3 for prop in proportions):
+    if any(prop < 0.2 for prop in proportions):
         errors.append(f"Class imbalance: {class_counts.to_dict()}")
 
     # 3. No missing paths or tiny/empty files

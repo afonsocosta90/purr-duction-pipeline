@@ -1,6 +1,6 @@
 # configs/training.yaml
 training:
-  epochs: 10
+  epochs: 20
   batch_size: 32
   learning_rate: 0.001
   optimizer: "adam"
