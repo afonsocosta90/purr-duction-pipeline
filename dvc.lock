@@ -5,8 +5,8 @@ stages:
     deps:
     - path: src/catops/data/ingest.py
       hash: md5
-      md5: 8a229a0c62596eb1c8a90d44831f8782
-      size: 2087
+      md5: 3054b58113b651cc4a996625bddaecff
+      size: 2128
     outs:
     - path: data/processed/cat
       hash: md5
@@ -15,9 +15,9 @@ stages:
       nfiles: 2400
     - path: data/processed/not_cat
       hash: md5
-      md5: 6320da84e59a8019c7720d3ecdeec222.dir
-      size: 574840860
-      nfiles: 4990
+      md5: 1ba55f3db3c32d08d63c39452a18f86c.dir
+      size: 900490343
+      nfiles: 6990
   validate:
     cmd: python src/catops/data/validate.py
     deps:
@@ -28,50 +28,50 @@ stages:
       nfiles: 2400
     - path: data/processed/not_cat
       hash: md5
-      md5: 6320da84e59a8019c7720d3ecdeec222.dir
-      size: 574840860
-      nfiles: 4990
+      md5: 1ba55f3db3c32d08d63c39452a18f86c.dir
+      size: 900490343
+      nfiles: 6990
     - path: src/catops/data/validate.py
       hash: md5
-      md5: 0d5faa61335cabceaf37ee5a376ad7c5
-      size: 4276
+      md5: 6760b5df46c608dd004e4793a4ae9d8a
+      size: 4396
     outs:
     - path: data/processed/metadata.csv
       hash: md5
-      md5: 07d161d82c76328fd23cf5e5fbada57a
-      size: 296163
+      md5: 37779b612a2e5c3aefd69ce7b1f97fa6
+      size: 401269
   features:
     cmd: python -m src.catops.features.build_features
     deps:
     - path: configs/data.yaml
       hash: md5
-      md5: 27b5c5c7f53c38c07c25ff3545202075
-      size: 179
+      md5: 94dbeaa4e7515fc1ab541266a5aba400
+      size: 191
     - path: data/processed/metadata.csv
       hash: md5
-      md5: 07d161d82c76328fd23cf5e5fbada57a
-      size: 296163
+      md5: 37779b612a2e5c3aefd69ce7b1f97fa6
+      size: 401269
     - path: src/catops/features/build_features.py
       hash: md5
-      md5: 705a462de4f516700ec5a43898072f30
-      size: 2645
+      md5: 7a46f6372af0e9f855769c1b5555e1c6
+      size: 2722
     outs:
     - path: data/processed/features_config.json
       hash: md5
-      md5: 3a1145f9ec020db6fb5facf96ddbc521
-      size: 264
+      md5: e1637c7d7e8f86855820136e727f34a5
+      size: 285
     - path: data/processed/test.csv
       hash: md5
-      md5: e1f7c646851d2dbe80727db5124086f5
-      size: 37347
+      md5: c469bbbf04bd3a8ac7eb66dc13c5645f
+      size: 50831
     - path: data/processed/train.csv
       hash: md5
-      md5: f5aedc67a67ecdc0f9a1fcd927cbd791
-      size: 173793
+      md5: 018a0d55e3c340e1d15cf44b4f321c18
+      size: 237327
     - path: data/processed/val.csv
       hash: md5
-      md5: 682990a54c188bb226eb8763ee387637
-      size: 36795
+      md5: fc7d6b381b2cde68a36f1b08b4a0669c
+      size: 51170
   train:
     cmd: python -m src.catops.training.train
     deps:

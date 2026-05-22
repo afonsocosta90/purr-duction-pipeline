@@ -79,8 +79,12 @@ jobs:
           poetry run dvc remote modify dagshub user ${{ secrets.DAGSHUB_USER }}
           poetry run dvc remote modify dagshub password ${{ secrets.DAGSHUB_TOKEN }}
 
-      - name: Pull DVC data
-        run: poetry run dvc pull
+      - name: Pull raw input data
+        # Only the raw images are needed as pipeline input. The next step runs
+        # `dvc repro --force`, which regenerates every processed/model/artifact
+        # output from scratch — so there is no need to pull them, and a plain
+        # `dvc pull` fails whenever those outputs are absent from the remote.
+        run: poetry run dvc pull data/raw
 
       - name: Verify DagsHub MLflow auth
         env:
@@ -153,5 +157,7 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/purr-duction-pipeline-demo:latest
             ghcr.io/${{ github.repository_owner }}/purr-duction-pipeline-demo:${{ github.sha }}
+          build-args: |
+            BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/purr-duction-pipeline:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

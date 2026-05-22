@@ -21,16 +21,16 @@ def extract_dataset() -> None:
     extract_dir = RAW_DIR / "images"
 
     if not tar_path.exists():
-        raise FileNotFoundError(f"❌ Dataset not found at {tar_path}")
+        raise FileNotFoundError(f"Dataset not found at {tar_path}")
 
     if not extract_dir.exists():
-        print("📦 Extracting Oxford-IIIT Pet images...")
+        print("Extracting Oxford-IIIT Pet images...")
         with tarfile.open(tar_path) as tar:
             for member in tqdm(tar.getmembers(), desc="Extracting"):
                 tar.extract(member, path=RAW_DIR)
-        print("✅ Extraction complete")
+        print("Extraction complete")
     else:
-        print("✅ Images already extracted")
+        print("Images already extracted")
 
 
 def organize_for_binary_classification() -> None:
@@ -45,7 +45,7 @@ def organize_for_binary_classification() -> None:
 
     images_dir = RAW_DIR / "images"
 
-    print("🔄 Organizing images into cat / not_cat...")
+    print("Organizing images into cat / not_cat...")
     image_list = list(images_dir.glob("*.jpg"))
 
     for img_path in tqdm(image_list, desc="Organizing"):
@@ -59,9 +59,9 @@ def organize_for_binary_classification() -> None:
     not_cat_count = len(list(not_cat_dir.glob("*.jpg")))
 
     print("Dataset organized:")
-    print(f"   → {cat_count} cat images")
-    print(f"   → {not_cat_count} not_cat images")
-    print(f"   → Total: {cat_count + not_cat_count} images")
+    print(f"   - {cat_count} cat images")
+    print(f"   - {not_cat_count} not_cat images")
+    print(f"   - Total: {cat_count + not_cat_count} images")
 
 
 if __name__ == "__main__":
