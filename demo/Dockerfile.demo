@@ -1,12 +1,15 @@
 # demo/Dockerfile.demo
 # Extends the production API image — reuses ALL ML dependencies already built
-# in catops-api:demo (PyTorch, torchvision, FastAPI, DVC, Poetry venv, etc.).
+# in the API image (PyTorch, torchvision, FastAPI, DVC, Poetry venv, etc.).
 # Only adds the 3 demo-specific packages: streamlit, httpx, plotly.
 #
 # Build time: ~30 s (vs ~10 min rebuilding from scratch).
 #
-# Requires catops-api:demo to be built first.  The Makefile `demo` target
-# handles this ordering explicitly.
+# The base image is selected via the BASE_IMAGE build-arg (see ARG below):
+#   - Local (demo/launch.py / `make demo`): defaults to `catops-api:demo`,
+#     the tag the launcher creates — that base must be built/pulled first.
+#   - CI/CD: the docker workflow passes the freshly built-and-pushed GHCR
+#     image, so the demo image always layers on the current API image.
 
 ARG BASE_IMAGE=catops-api:demo
 FROM ${BASE_IMAGE}
