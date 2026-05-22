@@ -26,6 +26,7 @@ def _wait_for_file(path: Path, timeout: int = 10) -> None:
             return  # Timeout reached, let the caller handle the missing file
         time.sleep(0.5)
 
+
 _DEFAULT_MODEL_PATH = Path(os.getenv("MODEL_PATH", "models/best_model.pt"))
 _DEFAULT_CONFIG_PATH = Path(os.getenv("MODEL_CONFIG_PATH", "models/model_config.json"))
 _DEFAULT_FEATURES_CONFIG_PATH = Path(
