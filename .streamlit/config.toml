@@ -1,0 +1,9 @@
+# Streamlit native theme — keeps built-in widgets (slider fill, inputs,
+# menus, focus rings) consistent with the "Refined Dark Teal" design
+# system defined in demo/streamlit_app.py. Visual only; no app behavior.
+[theme]
+base = "dark"
+primaryColor = "#06d6a0"
+backgroundColor = "#070b14"
+secondaryBackgroundColor = "#1a2438"
+textColor = "#f1f5f9"

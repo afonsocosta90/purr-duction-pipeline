@@ -40,24 +40,27 @@ GRAFANA_URL: str = os.getenv("GRAFANA_URL", "http://localhost:3001")
 FEEDBACK_LOG: Path = PROJECT_ROOT / "monitoring" / "feedback_log.csv"
 INFERENCE_LOG: Path = PROJECT_ROOT / "monitoring" / "inference_log.csv"
 SIMULATE_SCRIPT: Path = Path(__file__).parent / "simulate_drift.py"
+DEMO_DATA_DIR: Path = Path(__file__).parent / "demo_data"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Design tokens
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Refined Dark Teal — deeper near-black canvas, crisper teal accent.
 TEAL = "#06d6a0"
-TEAL_DIM = "#059669"
-NAVY = "#0a0e1a"
-SURFACE = "#111827"
-SURFACE_2 = "#1a2235"
-BORDER = "#1e3050"
+TEAL_DIM = "#0e9f78"
+NAVY = "#070b14"
+SURFACE = "#0e1521"
+SURFACE_2 = "#1a2438"
+BORDER = "#26334d"
 TEXT_PRIMARY = "#f1f5f9"
-TEXT_SECONDARY = "#94a3b8"
+TEXT_SECONDARY = "#9aa7bd"
 SUCCESS = "#22c55e"
 WARNING = "#f59e0b"
 DANGER = "#ef4444"
-CAT_GRADIENT = "linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0d9488 100%)"
-NOT_CAT_GRADIENT = "linear-gradient(135deg, #7f1d1d 0%, #991b1b 50%, #dc2626 100%)"
+CAT_GRADIENT = "linear-gradient(140deg, #06443a 0%, #0a6e54 60%, #0f9b78 100%)"
+NOT_CAT_GRADIENT = "linear-gradient(140deg, #6e1f1f 0%, #9a2725 60%, #c0392f 100%)"
+UNCERTAIN_GRADIENT = "linear-gradient(140deg, #6b3410 0%, #8a4a12 60%, #ab6510 100%)"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Page setup (must be first Streamlit call)
@@ -77,213 +80,242 @@ st.set_page_config(
 st.markdown(
     f"""
     <style>
-    /* ── Base resets ────────────────────────────────────────────────── */
-    html, body, [data-testid="stAppViewContainer"] {{
+    /* ════════════════════════════════════════════════════════════════
+       "Am I a Cat?" — design system  ·  Refined Dark Teal
+       ════════════════════════════════════════════════════════════════ */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    /* ── Base ───────────────────────────────────────────────────────── */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {{
         background-color: {NAVY};
         color: {TEXT_PRIMARY};
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }}
+    [data-testid="stAppViewContainer"] {{
+        background:
+            radial-gradient(1000px 520px at 84% -10%, rgba(6,214,160,0.07), transparent 70%),
+            {NAVY};
+    }}
+    [data-testid="stHeader"] {{ background: transparent; }}
+    [data-testid="stAppDeployButton"] {{ display: none !important; }}
+    ::selection {{ background: rgba(6,214,160,0.30); color: #fff; }}
+
+    /* tighten default main padding so the hero sits near the top */
+    [data-testid="stMainBlockContainer"], .block-container {{
+        padding-top: 2.4rem;
+        padding-bottom: 3rem;
+        max-width: 1200px;
+    }}
+
+    /* ── Typography ─────────────────────────────────────────────────── */
+    h1, h2, h3, h4 {{
+        color: {TEXT_PRIMARY} !important;
+        font-weight: 700;
+        letter-spacing: -0.021em;
+        line-height: 1.22;
+    }}
+    h2 {{ font-size: 1.72rem !important; }}
+    h3 {{ font-size: 1.2rem !important; }}
+    p, li, span {{ color: {TEXT_SECONDARY}; }}
+    p, li {{ line-height: 1.62; }}
+    .stMarkdown p {{ color: {TEXT_SECONDARY}; }}
+    a {{ color: {TEAL}; text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
+    code {{
+        background: rgba(6,214,160,0.10);
+        color: {TEAL};
+        border-radius: 5px;
+        padding: 0.07rem 0.36rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85em;
+    }}
+
+    /* ── Sidebar ────────────────────────────────────────────────────── */
     [data-testid="stSidebar"] {{
         background: {SURFACE} !important;
         border-right: 1px solid {BORDER};
     }}
-    [data-testid="stSidebar"] > div:first-child {{
-        padding-top: 1.5rem;
-    }}
+    [data-testid="stSidebar"] > div:first-child {{ padding-top: 1.4rem; }}
 
-    /* ── Typography ─────────────────────────────────────────────────── */
-    h1, h2, h3, h4 {{ color: {TEXT_PRIMARY} !important; font-weight: 700; }}
-    p, li, span {{ color: {TEXT_SECONDARY}; }}
-    .stMarkdown p {{ color: {TEXT_SECONDARY}; }}
-
-    /* ── Tab styling ────────────────────────────────────────────────── */
+    /* ── Tabs ───────────────────────────────────────────────────────── */
     [data-testid="stTabs"] [role="tablist"] {{
-        border-bottom: 2px solid {BORDER};
-        gap: 0.25rem;
+        border-bottom: 1px solid {BORDER};
+        gap: 0.3rem;
     }}
     [data-testid="stTabs"] [role="tab"] {{
         color: {TEXT_SECONDARY};
-        border-radius: 8px 8px 0 0;
-        padding: 0.6rem 1.4rem;
-        font-weight: 500;
-        transition: all 0.2s ease;
+        border-radius: 9px 9px 0 0;
+        padding: 0.55rem 1.25rem;
+        font-weight: 600;
+        font-size: 0.92rem;
+        transition: color .18s ease, background .18s ease;
+    }}
+    [data-testid="stTabs"] [role="tab"]:hover {{
+        color: {TEXT_PRIMARY};
+        background: rgba(255,255,255,0.035);
     }}
     [data-testid="stTabs"] [role="tab"][aria-selected="true"] {{
         color: {TEAL};
-        border-bottom: 2px solid {TEAL};
-        background: rgba(6,214,160,0.07);
-    }}
-    [data-testid="stTabs"] [role="tab"]:hover {{
-        color: {TEAL};
-        background: rgba(6,214,160,0.05);
+        background: rgba(6,214,160,0.09);
+        box-shadow: inset 0 -2px 0 {TEAL};
     }}
 
     /* ── Cards ──────────────────────────────────────────────────────── */
     .card {{
         background: {SURFACE_2};
         border: 1px solid {BORDER};
-        border-radius: 14px;
+        border-radius: 16px;
         padding: 1.5rem;
         margin-bottom: 1rem;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.35);
-        transition: box-shadow 0.2s ease;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.38);
+        transition: border-color .2s ease, box-shadow .2s ease;
     }}
-    .card:hover {{ box-shadow: 0 6px 32px rgba(0,0,0,0.5); }}
+    .card:hover {{
+        border-color: rgba(6,214,160,0.30);
+        box-shadow: 0 12px 38px rgba(0,0,0,0.5);
+    }}
 
+    /* result cards — animated entrance smooths the inference handoff */
+    .card-cat, .card-notcat, .card-uncertain {{
+        border-radius: 16px;
+        padding: 2rem 1.5rem;
+        text-align: center;
+        margin-bottom: 1rem;
+        animation: cardIn .42s cubic-bezier(.2,.7,.2,1);
+    }}
     .card-cat {{
         background: {CAT_GRADIENT};
         border: 1px solid {TEAL_DIM};
-        border-radius: 14px;
-        padding: 2rem;
-        text-align: center;
-        box-shadow: 0 8px 32px rgba(6,214,160,0.2);
-        margin-bottom: 1rem;
+        box-shadow: 0 14px 42px rgba(6,214,160,0.22);
     }}
     .card-notcat {{
         background: {NOT_CAT_GRADIENT};
-        border: 1px solid #991b1b;
-        border-radius: 14px;
-        padding: 2rem;
-        text-align: center;
-        box-shadow: 0 8px 32px rgba(239,68,68,0.2);
-        margin-bottom: 1rem;
+        border: 1px solid #b1342f;
+        box-shadow: 0 14px 42px rgba(239,68,68,0.20);
+    }}
+    .card-uncertain {{
+        background: {UNCERTAIN_GRADIENT};
+        border: 1px solid {WARNING};
+        box-shadow: 0 14px 42px rgba(245,158,11,0.20);
     }}
 
-    /* ── Metric chips ───────────────────────────────────────────────── */
+    /* ── Chips ──────────────────────────────────────────────────────── */
     .chip {{
         display: inline-block;
         background: {SURFACE_2};
         border: 1px solid {BORDER};
         border-radius: 999px;
-        padding: 0.3rem 0.85rem;
-        font-size: 0.78rem;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.76rem;
         font-weight: 600;
+        letter-spacing: 0.02em;
         color: {TEXT_PRIMARY};
         margin: 0.15rem;
     }}
-    .chip-teal  {{ border-color: {TEAL}; color: {TEAL}; background: rgba(6,214,160,0.08); }}
-    .chip-green {{ border-color: {SUCCESS}; color: {SUCCESS}; background: rgba(34,197,94,0.08); }}
-    .chip-red   {{ border-color: {DANGER}; color: {DANGER}; background: rgba(239,68,68,0.08); }}
-    .chip-amber {{ border-color: {WARNING}; color: {WARNING}; background: rgba(245,158,11,0.08); }}
+    .chip-teal  {{ border-color: rgba(6,214,160,0.55);  color: {TEAL};    background: rgba(6,214,160,0.11); }}
+    .chip-green {{ border-color: rgba(34,197,94,0.55);  color: {SUCCESS}; background: rgba(34,197,94,0.11); }}
+    .chip-red   {{ border-color: rgba(239,68,68,0.55);  color: {DANGER};  background: rgba(239,68,68,0.11); }}
+    .chip-amber {{ border-color: rgba(245,158,11,0.55); color: {WARNING}; background: rgba(245,158,11,0.11); }}
 
     /* ── Health pill ────────────────────────────────────────────────── */
     .health-pill {{
         display: inline-flex;
         align-items: center;
-        gap: 0.4rem;
+        gap: 0.45rem;
         border-radius: 999px;
-        padding: 0.3rem 0.9rem;
-        font-size: 0.8rem;
+        padding: 0.32rem 0.85rem;
+        font-size: 0.78rem;
         font-weight: 600;
-        margin: 0.5rem 0;
+        margin: 0.45rem 0;
     }}
-    .health-up   {{ background: rgba(34,197,94,0.12); border: 1px solid {SUCCESS}; color: {SUCCESS}; }}
-    .health-down {{ background: rgba(239,68,68,0.12); border: 1px solid {DANGER};  color: {DANGER}; }}
+    .health-up   {{ background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.55); color: {SUCCESS}; }}
+    .health-down {{ background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.55); color: {DANGER}; }}
     .health-dot  {{ width: 7px; height: 7px; border-radius: 50%; }}
-    .health-up   .health-dot {{ background: {SUCCESS}; box-shadow: 0 0 6px {SUCCESS}; animation: pulse 2s infinite; }}
+    .health-up   .health-dot {{ background: {SUCCESS}; box-shadow: 0 0 8px {SUCCESS}; animation: pulse 2s infinite; }}
     .health-down .health-dot {{ background: {DANGER}; }}
-
-    @keyframes pulse {{
-        0%, 100% {{ opacity: 1; }}
-        50%       {{ opacity: 0.4; }}
-    }}
 
     /* ── Terminal log box ───────────────────────────────────────────── */
     .log-box {{
-        background: #060a0f;
+        background: #05080d;
         border: 1px solid {BORDER};
-        border-radius: 10px;
-        color: #a8ff78;
-        font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+        border-radius: 12px;
+        color: #7cffb2;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
         font-size: 0.75rem;
-        line-height: 1.6;
-        padding: 1rem 1.2rem;
+        line-height: 1.65;
+        padding: 1rem 1.15rem;
         height: 320px;
         overflow-y: auto;
         white-space: pre-wrap;
         word-break: break-all;
-        box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+        box-shadow: inset 0 2px 14px rgba(0,0,0,0.6);
     }}
-    .log-box::-webkit-scrollbar       {{ width: 4px; }}
-    .log-box::-webkit-scrollbar-track {{ background: transparent; }}
-    .log-box::-webkit-scrollbar-thumb {{ background: {BORDER}; border-radius: 4px; }}
 
     /* ── Step wizard ────────────────────────────────────────────────── */
     .step-header {{
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 0.75rem;
+        gap: 0.8rem;
+        margin-bottom: 0.8rem;
     }}
     .step-badge {{
-        width: 32px; height: 32px;
+        width: 34px; height: 34px;
         border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-weight: 700; font-size: 0.85rem;
+        font-weight: 700; font-size: 0.9rem;
         flex-shrink: 0;
     }}
-    .step-active   {{ background: {TEAL}; color: #000; box-shadow: 0 0 12px rgba(6,214,160,0.5); }}
-    .step-done     {{ background: {SUCCESS}; color: #000; }}
+    .step-active   {{ background: {TEAL}; color: #04110d; box-shadow: 0 0 0 4px rgba(6,214,160,0.16); }}
+    .step-done     {{ background: {SUCCESS}; color: #04130a; }}
     .step-locked   {{ background: {SURFACE_2}; color: {TEXT_SECONDARY}; border: 1px solid {BORDER}; }}
-    .step-title    {{ font-size: 1.05rem; font-weight: 600; color: {TEXT_PRIMARY}; }}
+    .step-title    {{ font-size: 1.06rem; font-weight: 700; color: {TEXT_PRIMARY}; letter-spacing: -0.01em; }}
     .step-subtitle {{ font-size: 0.82rem; color: {TEXT_SECONDARY}; }}
 
-    /* ── Metric comparison row ──────────────────────────────────────── */
+    /* ── Metric comparison rows ─────────────────────────────────────── */
     .metric-row {{
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.6rem 0.9rem;
-        border-radius: 8px;
+        padding: 0.62rem 0.9rem;
+        border-radius: 9px;
         margin-bottom: 0.4rem;
-        background: rgba(255,255,255,0.03);
+        background: rgba(255,255,255,0.025);
         border: 1px solid {BORDER};
     }}
     .metric-label {{ font-size: 0.82rem; color: {TEXT_SECONDARY}; }}
-    .metric-value {{ font-size: 0.95rem; font-weight: 600; color: {TEXT_PRIMARY}; font-family: monospace; }}
+    .metric-value {{ font-size: 0.95rem; font-weight: 600; color: {TEXT_PRIMARY}; font-family: 'JetBrains Mono', monospace; }}
     .delta-up   {{ color: {SUCCESS}; font-size: 0.8rem; }}
     .delta-down {{ color: {DANGER};  font-size: 0.8rem; }}
     .delta-flat {{ color: {TEXT_SECONDARY}; font-size: 0.8rem; }}
 
     /* ── Promotion banners ──────────────────────────────────────────── */
-    .banner-promoted {{
-        background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(6,214,160,0.08));
-        border: 1px solid {SUCCESS};
-        border-radius: 12px;
-        padding: 1.2rem 1.6rem;
+    .banner-promoted, .banner-failed {{
+        border-radius: 14px;
+        padding: 1.3rem 1.6rem;
         text-align: center;
         margin-top: 1rem;
+        animation: cardIn .42s cubic-bezier(.2,.7,.2,1);
+    }}
+    .banner-promoted {{
+        background: linear-gradient(135deg, rgba(34,197,94,0.14), rgba(6,214,160,0.08));
+        border: 1px solid rgba(34,197,94,0.6);
     }}
     .banner-failed {{
-        background: linear-gradient(135deg, rgba(239,68,68,0.12), rgba(245,158,11,0.06));
-        border: 1px solid {DANGER};
-        border-radius: 12px;
-        padding: 1.2rem 1.6rem;
-        text-align: center;
-        margin-top: 1rem;
+        background: linear-gradient(135deg, rgba(239,68,68,0.14), rgba(245,158,11,0.07));
+        border: 1px solid rgba(239,68,68,0.6);
     }}
 
-    /* ── Upload area ────────────────────────────────────────────────── */
-    [data-testid="stFileUploader"] {{
-        border-radius: 12px;
-    }}
-    [data-testid="stFileUploader"] > div {{
-        border: 2px dashed {BORDER};
-        border-radius: 12px;
-        background: {SURFACE_2};
-        transition: border-color 0.2s;
-    }}
-    [data-testid="stFileUploader"] > div:hover {{
-        border-color: {TEAL};
-    }}
-
-    /* ── Low confidence warning ─────────────────────────────────────── */
+    /* ── Low-confidence / inline warning banner ─────────────────────── */
     .warning-banner {{
-        background: rgba(245,158,11,0.1);
-        border: 1px solid {WARNING};
+        background: rgba(245,158,11,0.10);
+        border: 1px solid rgba(245,158,11,0.45);
+        border-left: 3px solid {WARNING};
         border-radius: 10px;
         padding: 0.75rem 1rem;
-        color: {WARNING};
-        font-size: 0.88rem;
+        color: #fbd9a5;
+        font-size: 0.86rem;
         font-weight: 500;
         margin: 0.75rem 0;
         display: flex;
@@ -293,30 +325,139 @@ st.markdown(
 
     /* ── Sidebar stat cards ─────────────────────────────────────────── */
     .sidebar-stat {{
-        background: rgba(255,255,255,0.04);
+        background: rgba(255,255,255,0.035);
         border: 1px solid {BORDER};
-        border-radius: 10px;
+        border-radius: 11px;
         padding: 0.7rem 0.9rem;
         margin-bottom: 0.5rem;
+        transition: border-color .18s ease;
     }}
-    .sidebar-stat-label {{ font-size: 0.72rem; color: {TEXT_SECONDARY}; text-transform: uppercase; letter-spacing: 0.05em; }}
-    .sidebar-stat-value {{ font-size: 1.3rem; font-weight: 700; color: {TEXT_PRIMARY}; margin-top: 0.1rem; }}
+    .sidebar-stat:hover {{ border-color: rgba(6,214,160,0.3); }}
+    .sidebar-stat-label {{ font-size: 0.68rem; color: {TEXT_SECONDARY}; text-transform: uppercase; letter-spacing: 0.07em; }}
+    .sidebar-stat-value {{ font-size: 1.35rem; font-weight: 800; color: {TEXT_PRIMARY}; margin-top: 0.1rem; }}
+
+    /* ── Buttons ────────────────────────────────────────────────────── */
+    .stButton button {{
+        border-radius: 9px;
+        font-weight: 600;
+        border: 1px solid {BORDER};
+        background: {SURFACE_2};
+        color: {TEXT_PRIMARY};
+        transition: transform .12s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+    }}
+    .stButton button:hover {{
+        transform: translateY(-1px);
+        border-color: rgba(6,214,160,0.5);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    }}
+    .stButton button:active {{ transform: translateY(0); }}
+    .stButton button[data-testid="stBaseButton-primary"],
+    .stButton button[kind="primary"] {{
+        background: {TEAL};
+        color: #04110d;
+        border-color: {TEAL};
+        box-shadow: 0 6px 18px rgba(6,214,160,0.28);
+    }}
+    .stButton button[data-testid="stBaseButton-primary"]:hover,
+    .stButton button[kind="primary"]:hover {{
+        background: #0ee9b0;
+        border-color: #0ee9b0;
+        box-shadow: 0 8px 24px rgba(6,214,160,0.42);
+    }}
+    .stLinkButton a {{
+        border-radius: 9px !important;
+        border: 1px solid {BORDER} !important;
+        font-weight: 600 !important;
+    }}
+
+    /* ── Inputs ─────────────────────────────────────────────────────── */
+    [data-testid="stFileUploaderDropzone"] {{
+        border: 1.5px dashed {BORDER};
+        border-radius: 12px;
+        background: rgba(255,255,255,0.02);
+        transition: border-color .18s ease, background .18s ease;
+    }}
+    [data-testid="stFileUploaderDropzone"]:hover {{
+        border-color: {TEAL};
+        background: rgba(6,214,160,0.045);
+    }}
+    .stSlider > div {{ padding: 0.4rem 0; }}
+    [data-baseweb="slider"] [role="slider"] {{ background: {TEAL} !important; }}
+    [data-testid="stImage"] img, .stImage img {{
+        border-radius: 12px;
+        border: 1px solid {BORDER};
+    }}
+
+    /* ── Alerts — success / error / warning / info ──────────────────── */
+    [data-testid="stAlertContainer"] {{
+        border-radius: 11px;
+        border: 1px solid {BORDER};
+        font-size: 0.88rem;
+    }}
+
+    /* ── Spinner — inference loading state ──────────────────────────── */
+    [data-testid="stSpinner"] {{
+        background: {SURFACE_2};
+        border: 1px solid rgba(6,214,160,0.28);
+        border-radius: 12px;
+        padding: 0.8rem 1.05rem;
+        box-shadow: 0 8px 26px rgba(0,0,0,0.4);
+    }}
+    [data-testid="stSpinner"] > div {{ color: {TEAL}; font-weight: 600; }}
+
+    /* ── Metrics ────────────────────────────────────────────────────── */
+    [data-testid="stMetric"] {{
+        background: {SURFACE_2};
+        border: 1px solid {BORDER};
+        border-radius: 12px;
+        padding: 0.9rem 1rem;
+    }}
+    [data-testid="stMetricValue"] {{ font-size: 1.55rem !important; font-weight: 800; }}
+    [data-testid="stMetricLabel"] {{ color: {TEXT_SECONDARY}; }}
+
+    /* ── DataFrame / expander ───────────────────────────────────────── */
+    .stDataFrame {{ border-radius: 11px; overflow: hidden; border: 1px solid {BORDER}; }}
+    [data-testid="stExpander"] {{
+        border: 1px solid {BORDER};
+        border-radius: 11px;
+        background: {SURFACE_2};
+        overflow: hidden;
+    }}
 
     /* ── Divider ────────────────────────────────────────────────────── */
-    hr {{ border-color: {BORDER} !important; margin: 1rem 0; }}
+    hr {{ border-color: {BORDER} !important; margin: 1.1rem 0; }}
 
-    /* ── Streamlit overrides ────────────────────────────────────────── */
-    .stButton > button {{
-        border-radius: 8px;
-        font-weight: 600;
-        transition: all 0.2s ease;
+    /* ── Scrollbars ─────────────────────────────────────────────────── */
+    ::-webkit-scrollbar {{ width: 9px; height: 9px; }}
+    ::-webkit-scrollbar-track {{ background: transparent; }}
+    ::-webkit-scrollbar-thumb {{ background: {BORDER}; border-radius: 6px; }}
+    ::-webkit-scrollbar-thumb:hover {{ background: #36476a; }}
+    .log-box::-webkit-scrollbar {{ width: 5px; }}
+    .log-box::-webkit-scrollbar-thumb {{ background: #1d3a2c; }}
+
+    /* ── Animations ─────────────────────────────────────────────────── */
+    @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.35; }} }}
+    @keyframes cardIn {{
+        from {{ opacity: 0; transform: translateY(10px) scale(0.99); }}
+        to   {{ opacity: 1; transform: translateY(0) scale(1); }}
     }}
-    .stButton > button:hover {{ transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.4); }}
-    [data-testid="stMetricValue"] {{ font-size: 1.6rem !important; }}
-    .stDataFrame {{ border-radius: 10px; overflow: hidden; }}
-    .stSlider > div {{ padding: 0.5rem 0; }}
-    footer {{ display: none !important; }}
-    #MainMenu {{ display: none !important; }}
+
+    /* ── Chrome ─────────────────────────────────────────────────────── */
+    footer, #MainMenu {{ display: none !important; }}
+
+    /* ── Responsive ─────────────────────────────────────────────────── */
+    @media (max-width: 900px) {{
+        [data-testid="stMainBlockContainer"], .block-container {{
+            padding-left: 1.1rem; padding-right: 1.1rem; padding-top: 1.6rem;
+        }}
+        h2 {{ font-size: 1.42rem !important; }}
+        .card-cat, .card-notcat, .card-uncertain {{ padding: 1.5rem 1rem; }}
+    }}
+    @media (max-width: 640px) {{
+        .card {{ padding: 1.15rem; }}
+        [data-testid="stTabs"] [role="tab"] {{ padding: 0.5rem 0.8rem; font-size: 0.84rem; }}
+        [data-testid="stMetricValue"] {{ font-size: 1.3rem !important; }}
+    }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -375,6 +516,41 @@ def _predict(image_bytes: bytes, filename: str) -> dict:
         )
     resp.raise_for_status()
     return resp.json()
+
+
+_SAMPLE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+def _list_sample_images() -> list[Path]:
+    """Return the bundled demo images under demo/demo_data, sorted by name."""
+    if not DEMO_DATA_DIR.is_dir():
+        return []
+    return sorted(
+        p for p in DEMO_DATA_DIR.iterdir() if p.suffix.lower() in _SAMPLE_EXTS
+    )
+
+
+def _sample_caption(path: Path) -> str:
+    """Human-friendly button label for a bundled sample image."""
+    stem = path.stem.lower()
+    if stem.startswith(("not_cat", "notcat", "dog")):
+        return "Dog"
+    if stem.startswith("cat"):
+        return "Cat"
+    return path.stem
+
+
+def _set_active_image(image_bytes: bytes, filename: str) -> None:
+    """Make `image_bytes` the image to classify; reset stale prediction state.
+
+    No-op when the bytes are unchanged, so a rerun does not re-trigger
+    inference for an image that is already classified.
+    """
+    if image_bytes != st.session_state.last_image_bytes:
+        st.session_state.last_image_bytes = image_bytes
+        st.session_state.last_filename = filename
+        st.session_state.last_prediction = None
+        st.session_state.feedback_submitted = False
 
 
 def _save_feedback(filename: str, predicted: str, correct: str) -> None:
@@ -474,40 +650,49 @@ _PLOTLY_DARK = dict(
 )
 
 
-def _confidence_gauge(confidence: float, label: str) -> go.Figure:
-    bar_color = TEAL if label == "cat" else DANGER
+def _confidence_gauge(
+    confidence: float, label: str, uncertain: bool = False
+) -> go.Figure:
+    bar_color = WARNING if uncertain else (TEAL if label == "cat" else DANGER)
     pct = round(confidence * 100, 1)
     fig = go.Figure(
         go.Indicator(
             mode="gauge+number",
             value=pct,
-            number={"suffix": "%", "font": {"size": 36, "color": TEXT_PRIMARY}},
+            number={
+                "suffix": "%",
+                "font": {
+                    "size": 42,
+                    "color": TEXT_PRIMARY,
+                    "family": "Inter, sans-serif",
+                },
+            },
             gauge={
                 "axis": {
                     "range": [0, 100],
-                    "tickwidth": 1,
-                    "tickcolor": TEXT_SECONDARY,
-                    "tickfont": {"color": TEXT_SECONDARY, "size": 10},
+                    "tickwidth": 0,
+                    "ticklen": 0,
+                    "tickfont": {"color": TEXT_SECONDARY, "size": 9},
                 },
-                "bar": {"color": bar_color, "thickness": 0.28},
-                "bgcolor": SURFACE_2,
+                "bar": {"color": bar_color, "thickness": 0.34},
+                "bgcolor": "rgba(255,255,255,0.04)",
                 "borderwidth": 0,
                 "steps": [
-                    {"range": [0, 50], "color": "rgba(239,68,68,0.12)"},
+                    {"range": [0, 50], "color": "rgba(239,68,68,0.10)"},
                     {"range": [50, 80], "color": "rgba(245,158,11,0.10)"},
                     {"range": [80, 100], "color": "rgba(6,214,160,0.10)"},
                 ],
                 "threshold": {
-                    "line": {"color": WARNING, "width": 2},
-                    "thickness": 0.8,
+                    "line": {"color": TEXT_SECONDARY, "width": 2},
+                    "thickness": 0.75,
                     "value": 80,
                 },
             },
         )
     )
     fig.update_layout(
-        height=220,
-        margin=dict(t=30, b=10, l=30, r=30),
+        height=212,
+        margin=dict(t=26, b=8, l=30, r=30),
         **_PLOTLY_DARK,
     )
     return fig
@@ -523,17 +708,21 @@ def _label_bar_chart(label_counts: dict) -> go.Figure:
             y=counts,
             marker_color=colors,
             marker_line_width=0,
+            width=0.5,
             text=counts,
             textposition="outside",
-            textfont=dict(color=TEXT_PRIMARY, size=13),
+            textfont=dict(color=TEXT_PRIMARY, size=13, family="Inter, sans-serif"),
         )
     )
     fig.update_layout(
         height=260,
-        margin=dict(t=10, b=10, l=20, r=20),
+        margin=dict(t=16, b=10, l=20, r=20),
         xaxis=dict(showgrid=False, tickfont=dict(color=TEXT_SECONDARY)),
         yaxis=dict(
-            showgrid=True, gridcolor=BORDER, tickfont=dict(color=TEXT_SECONDARY)
+            showgrid=True,
+            gridcolor="rgba(255,255,255,0.06)",
+            zeroline=False,
+            tickfont=dict(color=TEXT_SECONDARY),
         ),
         **_PLOTLY_DARK,
     )
@@ -669,9 +858,14 @@ with tab_predict:
     st.markdown(
         f"""
         <h2 style="margin-bottom:0.25rem;">Live Image Classification</h2>
-        <p style="color:{TEXT_SECONDARY}; margin-bottom:1.5rem;">
-            Upload any image — the ResNet50 model classifies it in real time via the FastAPI backend.
-            Submit feedback to feed the closed-loop retraining pipeline.
+        <p style="color:{TEXT_SECONDARY}; margin-bottom:0.5rem;">
+            Pick a bundled sample or upload your own — the ResNet50 model classifies it
+            in real time via the FastAPI backend.
+        </p>
+        <p style="color:{TEXT_SECONDARY}; font-size:0.82rem; margin-bottom:1.5rem;">
+            ℹ️ Trained on the Oxford-IIIT Pet dataset, the model only tells
+            <b>cats</b> from <b>dogs</b>. Images that are neither (a road, a car…)
+            are out-of-distribution and may be misclassified — even confidently.
         </p>
         """,
         unsafe_allow_html=True,
@@ -682,30 +876,63 @@ with tab_predict:
     # ── Left: Upload + preview ───────────────────────────────────────────
 
     with col_upload:
-        st.markdown(
-            f'<div style="font-weight:600; color:{TEXT_PRIMARY}; margin-bottom:0.5rem;">'
-            "📁 Upload Image</div>",
-            unsafe_allow_html=True,
-        )
-        uploaded_file = st.file_uploader(
-            "Drop an image here (JPG, PNG, WebP)",
-            type=["jpg", "jpeg", "png", "webp"],
-            label_visibility="visible",
+        input_mode = st.radio(
+            "Image source",
+            options=["🖼️ Sample images", "📤 Upload your own"],
+            horizontal=True,
+            label_visibility="collapsed",
+            key="input_mode",
         )
 
-        if uploaded_file:
-            image_bytes = uploaded_file.read()
-            # Only run prediction when the file changes
-            if image_bytes != st.session_state.last_image_bytes:
-                st.session_state.last_image_bytes = image_bytes
-                st.session_state.last_filename = uploaded_file.name
-                st.session_state.last_prediction = None
-                st.session_state.feedback_submitted = False
+        if input_mode == "📤 Upload your own":
+            st.markdown(
+                f'<div style="font-weight:600; color:{TEXT_PRIMARY}; '
+                'margin-bottom:0.5rem;">📁 Upload Image</div>',
+                unsafe_allow_html=True,
+            )
+            uploaded_file = st.file_uploader(
+                "Drop an image here (JPG, PNG, WebP)",
+                type=["jpg", "jpeg", "png", "webp"],
+                label_visibility="visible",
+            )
+            if uploaded_file is not None:
+                _set_active_image(uploaded_file.getvalue(), uploaded_file.name)
+        else:
+            samples = _list_sample_images()
+            if not samples:
+                st.markdown(
+                    '<div class="warning-banner">⚠️ No sample images found in '
+                    "<code>demo/demo_data</code> — switch to upload mode.</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f'<div style="font-size:0.82rem; color:{TEXT_SECONDARY}; '
+                    'margin-bottom:0.6rem;">Click a sample to classify it — '
+                    "these are cats and dogs, the two classes the model knows."
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+                per_row = 3
+                for start in range(0, len(samples), per_row):
+                    cols = st.columns(per_row)
+                    for col, path in zip(cols, samples[start : start + per_row]):
+                        with col:
+                            st.image(str(path), use_container_width=True)
+                            if st.button(
+                                _sample_caption(path),
+                                key=f"sample_{path.name}",
+                                use_container_width=True,
+                            ):
+                                _set_active_image(path.read_bytes(), path.name)
 
-            pil_img = Image.open(io.BytesIO(image_bytes))
+        # ── Selected image preview + prediction (shared by both modes) ──────
+        image_bytes = st.session_state.last_image_bytes
+        if image_bytes:
+            st.markdown("<hr>", unsafe_allow_html=True)
             st.image(
-                pil_img,
-                caption=uploaded_file.name,
+                Image.open(io.BytesIO(image_bytes)),
+                caption=st.session_state.last_filename,
                 use_container_width=True,
             )
 
@@ -718,35 +945,37 @@ with tab_predict:
             elif st.session_state.last_prediction is None:
                 with st.spinner("Classifying…"):
                     try:
-                        result = _predict(image_bytes, uploaded_file.name)
+                        result = _predict(
+                            image_bytes,
+                            st.session_state.last_filename or "image.jpg",
+                        )
                         st.session_state.last_prediction = result
-                        is_uncertain = result["confidence"] < confidence_threshold
-                        if is_uncertain:
+                        if result["confidence"] < confidence_threshold:
                             st.session_state.uncertain_count += 1
                         st.session_state.prediction_history.append(
                             {
                                 "Time": datetime.now().strftime("%H:%M:%S"),
-                                "File": uploaded_file.name,
+                                "File": st.session_state.last_filename,
                                 "Label": result["label"],
                                 "Confidence": f'{result["confidence"]:.1%}',
                             }
                         )
                     except httpx.HTTPStatusError as exc:
                         st.error(
-                            f"API error {exc.response.status_code}: {exc.response.text[:200]}"
+                            f"API error {exc.response.status_code}: "
+                            f"{exc.response.text[:200]}"
                         )
                     except Exception as exc:
                         st.error(f"Prediction failed: {exc}")
         else:
-            # Placeholder state
             st.markdown(
                 f"""
                 <div style="border: 2px dashed {BORDER}; border-radius:14px;
-                            background:{SURFACE_2}; padding:3rem 1.5rem;
-                            text-align:center; color:{TEXT_SECONDARY};">
+                            background:{SURFACE_2}; padding:2.5rem 1.5rem;
+                            text-align:center; color:{TEXT_SECONDARY}; margin-top:1rem;">
                     <div style="font-size:3rem; margin-bottom:0.75rem;">🖼️</div>
                     <div style="font-weight:600; color:{TEXT_PRIMARY}; margin-bottom:0.4rem;">
-                        Drop an image to begin
+                        Pick a sample or upload an image to begin
                     </div>
                     <div style="font-size:0.82rem;">Supports JPG, PNG, WebP</div>
                 </div>
@@ -777,15 +1006,27 @@ with tab_predict:
             confidence: float = pred["confidence"]
             is_uncertain = confidence < confidence_threshold
 
-            # Result card
-            if label == "cat":
+            # Result card — below the confidence threshold the verdict is
+            # withheld: the model's raw guess is shown only as a secondary
+            # "leaning", never as a definitive cat / not-cat answer.
+            if is_uncertain:
+                card_class = "card-uncertain"
+                emoji = "🤔"
+                label_display = "Uncertain"
+                chip_cls = "chip-amber"
+                chip_text = f"leans {label.replace('_', ' ')}"
+            elif label == "cat":
                 card_class = "card-cat"
                 emoji = "🐱"
                 label_display = "It's a Cat!"
+                chip_cls = "chip-teal"
+                chip_text = "cat"
             else:
                 card_class = "card-notcat"
                 emoji = "❌"
                 label_display = "Not a Cat"
+                chip_cls = "chip-red"
+                chip_text = "not cat"
 
             st.markdown(
                 f"""
@@ -796,9 +1037,7 @@ with tab_predict:
                         {label_display}
                     </div>
                     <div style="margin-top:0.4rem;">
-                        <span class="chip {'chip-teal' if label == 'cat' else 'chip-red'}">
-                            {label.replace("_", " ")}
-                        </span>
+                        <span class="chip {chip_cls}">{chip_text}</span>
                     </div>
                 </div>
                 """,
@@ -819,7 +1058,7 @@ with tab_predict:
 
             # Gauge
             st.plotly_chart(
-                _confidence_gauge(confidence, label),
+                _confidence_gauge(confidence, label, uncertain=is_uncertain),
                 use_container_width=True,
                 config={"displayModeBar": False},
             )
@@ -952,6 +1191,8 @@ with tab_pipeline:
 
     if inject_btn:
         st.session_state.drift_log = "Starting drift injection…\n"
+        # No --output-log: the API's inference_logger is the sole writer of
+        # inference_log.csv, so each injected image produces exactly one row.
         cmd = [
             sys.executable,
             "-u",
@@ -960,8 +1201,6 @@ with tab_pipeline:
             str(int(drift_count)),
             "--api-url",
             API_URL,
-            "--output-log",
-            str(INFERENCE_LOG),
         ]
         with st.spinner(f"Injecting {int(drift_count)} synthetic images…"):
             rc = _stream_subprocess(cmd, PROJECT_ROOT, drift_log_ph)
@@ -1050,6 +1289,27 @@ with tab_pipeline:
             st.session_state.after_metrics = _load_mlflow_metrics()
             st.session_state.retrain_done = True
             st.success("✅ Retraining pipeline finished successfully.")
+            # Tell the running API to pick up the freshly registered @staging
+            # model — keeps the closed-loop demo coherent without a restart.
+            try:
+                with httpx.Client(timeout=30.0) as client:
+                    reload_resp = client.post(f"{API_URL}/internal/reload-model")
+                if reload_resp.status_code == 200:
+                    st.success(
+                        f"🔄 API reloaded model "
+                        f"({reload_resp.json().get('source', 'unknown')})."
+                    )
+                else:
+                    st.warning(
+                        f"Retraining done, but model reload returned "
+                        f"HTTP {reload_resp.status_code}. The API will use the "
+                        "new model after its next restart."
+                    )
+            except Exception as exc:
+                st.warning(
+                    f"Retraining done, but the model-reload call failed ({exc}). "
+                    "Restart the API to serve the new model."
+                )
         else:
             st.error(f"⛔ Pipeline failed (exit code {rc}) — check the log above.")
         st.rerun()

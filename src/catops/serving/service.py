@@ -21,7 +21,7 @@ from src.catops.monitoring.inference_logger import log_inference
 from src.catops.serving.model_utils import (
     CLASS_NAMES,
     build_inference_transform,
-    load_model,
+    load_serving_model,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,13 +54,25 @@ _DRIFT_SCORE = Gauge(
 _DRIFT_SCORE_PATH = Path("monitoring/drift_score.json")
 
 
+def _load_model_into_state() -> str:
+    """(Re)load the serving model into the shared `_state` dict.
+
+    Returns the load source ("registry" or "disk"). Safe to call while the
+    server is live — see the /internal/reload-model endpoint for the
+    concurrency reasoning.
+    """
+    model, source = load_serving_model()
+    _state["model"] = model
+    _state["transform"] = build_inference_transform()
+    _state["device"] = next(model.parameters()).device
+    return source
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Loading model...")
-    _state["model"] = load_model()
-    _state["transform"] = build_inference_transform()
-    _state["device"] = next(_state["model"].parameters()).device
-    logger.info("Model loaded on device=%s", _state["device"])
+    source = _load_model_into_state()
+    logger.info("Model loaded from %s on device=%s", source, _state["device"])
 
     # Restore drift score from last drift run if available
     _DRIFT_SCORE.set(-1.0)
@@ -104,6 +116,25 @@ async def update_drift_score(payload: _DriftScorePayload):
     _DRIFT_SCORE.set(payload.score)
     logger.info("catops_drift_score updated to %.4f", payload.score)
     return {"status": "ok", "score": payload.score}
+
+
+@app.post("/internal/reload-model", include_in_schema=False)
+async def reload_model():
+    """Re-pull the serving model — called by the demo retrain flow so a newly
+    registered @staging model is served without an API restart.
+
+    No lock needed: this and /predict are both async coroutines on the single
+    event loop, and /predict performs inference with no `await` after its
+    initial `file.read()`, so a reload cannot interleave mid-prediction. The
+    single uvicorn worker (see docker/Dockerfile) makes this the only process.
+    """
+    try:
+        source = _load_model_into_state()
+        logger.info("Model reloaded from %s", source)
+        return {"status": "ok", "source": source}
+    except Exception as exc:
+        logger.exception("reload-model failed")
+        raise HTTPException(status_code=500, detail=f"Reload failed: {exc}") from exc
 
 
 @app.get("/health")

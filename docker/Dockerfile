@@ -33,4 +33,6 @@ USER appuser
 
 EXPOSE 3000
 
-CMD ["uvicorn", "src.catops.serving.service:app", "--host", "0.0.0.0", "--port", "3000", "--workers", "2", "--access-log"]
+# Single worker: the custom Prometheus Counter/Histogram/Gauge live in a
+# per-process registry, so multiple workers would split and corrupt /metrics.
+CMD ["uvicorn", "src.catops.serving.service:app", "--host", "0.0.0.0", "--port", "3000", "--workers", "1", "--access-log"]

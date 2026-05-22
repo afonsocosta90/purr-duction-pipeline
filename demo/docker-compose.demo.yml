@@ -67,6 +67,9 @@ services:
       FEATURES_CONFIG_PATH: /app/data/processed/features_config.json
       # Write inference log to the shared named volume mount
       INFERENCE_LOG_PATH: /app/monitoring/inference_log.csv
+      # Local sqlite MLflow registry on the shared bind mount — the API loads
+      # models:/am-i-a-cat@staging from here at startup and on reload.
+      MLFLOW_TRACKING_URI: sqlite:////app/mlflow.db
     networks:
       - catops-net
     healthcheck:
@@ -98,6 +101,9 @@ services:
       GRAFANA_URL: http://localhost:3001
       STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
       STREAMLIT_SERVER_HEADLESS: "true"
+      # Retrain (dvc repro) registers the model into the same sqlite registry
+      # the API reads — must match the api service's MLFLOW_TRACKING_URI.
+      MLFLOW_TRACKING_URI: sqlite:////app/mlflow.db
     depends_on:
       api:
         condition: service_healthy

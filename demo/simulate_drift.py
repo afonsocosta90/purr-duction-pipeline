@@ -1,17 +1,16 @@
 """
 Synthetic drift injection script — "Am I a Cat?" demo.
 
-Generates out-of-distribution (OOD) images and:
-  1. POSTs them to the FastAPI /predict endpoint to populate Prometheus metrics
-  2. Writes synthetic inference log entries to monitoring/inference_log.csv
-     with pixel statistics that diverge from the training baseline
+Generates out-of-distribution (OOD) images and POSTs them to the FastAPI
+/predict endpoint. The API itself logs every prediction to
+monitoring/inference_log.csv (via inference_logger) — this script is NOT a
+second writer, so the drift-window count stays accurate (one row per image).
 
 Usage:
     python demo/simulate_drift.py [OPTIONS]
 
     --count       INT   Number of synthetic images to send (default: 50)
     --api-url     STR   FastAPI base URL (default: http://localhost:3000)
-    --output-log  PATH  Path to inference_log.csv (default: monitoring/inference_log.csv)
     --seed        INT   Random seed for reproducibility (default: 42)
     --quiet             Suppress per-image progress output
 
@@ -25,14 +24,11 @@ Synthetic image types (equal distribution):
 from __future__ import annotations
 
 import argparse
-import csv
-import hashlib
 import io
 import logging
 import random
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 import httpx
@@ -104,63 +100,6 @@ def _blur_image(rng: random.Random, source_dir: Path | None) -> Image.Image:
 
 
 # ---------------------------------------------------------------------------
-# Inference log writer
-# ---------------------------------------------------------------------------
-
-LOG_COLUMNS = [
-    "timestamp",
-    "image_hash",
-    "pixel_mean_r",
-    "pixel_mean_g",
-    "pixel_mean_b",
-    "pixel_std_r",
-    "pixel_std_g",
-    "pixel_std_b",
-    "predicted_label",
-    "confidence",
-]
-
-
-def _pixel_stats(img: Image.Image) -> dict:
-    """Compute per-channel mean and std for an RGB PIL image."""
-    arr = np.asarray(img).astype(np.float32)
-    return {
-        "pixel_mean_r": float(arr[:, :, 0].mean()),
-        "pixel_mean_g": float(arr[:, :, 1].mean()),
-        "pixel_mean_b": float(arr[:, :, 2].mean()),
-        "pixel_std_r": float(arr[:, :, 0].std()),
-        "pixel_std_g": float(arr[:, :, 1].std()),
-        "pixel_std_b": float(arr[:, :, 2].std()),
-    }
-
-
-def _append_log_row(
-    log_path: Path, img_bytes: bytes, label: str, confidence: float
-) -> None:
-    """Write one row to the inference log CSV (GDPR-safe — no raw image stored)."""
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    write_header = not log_path.exists()
-
-    img = Image.open(io.BytesIO(img_bytes)).convert("RGB").resize(TARGET_SIZE)
-    stats = _pixel_stats(img)
-    image_hash = hashlib.md5(img_bytes).hexdigest()
-
-    row = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "image_hash": image_hash,
-        **stats,
-        "predicted_label": label,
-        "confidence": round(confidence, 6),
-    }
-
-    with log_path.open("a", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=LOG_COLUMNS)
-        if write_header:
-            writer.writeheader()
-        writer.writerow(row)
-
-
-# ---------------------------------------------------------------------------
 # Core injection loop
 # ---------------------------------------------------------------------------
 
@@ -175,13 +114,15 @@ def _pil_to_bytes(img: Image.Image) -> bytes:
 def run_injection(
     count: int,
     api_url: str,
-    output_log: Path,
     seed: int,
     quiet: bool,
     source_dir: Path | None,
 ) -> int:
     """
     Main injection function.  Returns the number of successfully processed images.
+
+    Each image is POSTed to the API once; the API's inference_logger writes the
+    single inference_log.csv row — this function never writes the log itself.
     """
     rng = random.Random(seed)
     np.random.seed(seed)
@@ -196,7 +137,6 @@ def run_injection(
     error_count = 0
 
     log.info("Starting drift injection: %d images → %s", count, api_url)
-    log.info("Inference log → %s", output_log)
 
     with httpx.Client(timeout=15.0) as client:
         for i in range(count):
@@ -209,7 +149,7 @@ def run_injection(
                 img = gen_fn(rng)
                 img_bytes = _pil_to_bytes(img)
 
-                # 1. Send to API
+                # Send to API — the API logs the prediction to inference_log.csv
                 response = client.post(
                     f"{api_url}/predict",
                     files={
@@ -224,9 +164,6 @@ def run_injection(
                 result = response.json()
                 label: str = result["label"]
                 confidence: float = result["confidence"]
-
-                # 2. Write to inference log
-                _append_log_row(output_log, img_bytes, label, confidence)
 
                 success_count += 1
                 if not quiet:
@@ -259,10 +196,9 @@ def run_injection(
             time.sleep(0.05)
 
     log.info(
-        "Injection complete: %d succeeded, %d errors. Log: %s",
+        "Injection complete: %d succeeded, %d errors.",
         success_count,
         error_count,
-        output_log,
     )
     return success_count
 
@@ -283,11 +219,6 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--api-url", default="http://localhost:3000", help="FastAPI base URL"
     )
-    parser.add_argument(
-        "--output-log",
-        default="monitoring/inference_log.csv",
-        help="Path to inference_log.csv",
-    )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument(
         "--quiet", action="store_true", help="Suppress per-image log lines"
@@ -306,7 +237,6 @@ if __name__ == "__main__":
     n = run_injection(
         count=args.count,
         api_url=args.api_url,
-        output_log=Path(args.output_log),
         seed=args.seed,
         quiet=args.quiet,
         source_dir=source,

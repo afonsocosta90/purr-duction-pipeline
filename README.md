@@ -10,8 +10,20 @@ ResNet50 transfer learning · DVC pipelines · MLflow experiment tracking · Fas
 
 ## Live Demo — One Command
 
+Pick whichever fits your machine — all three do the same thing (fetch the model,
+build/pull images, start the stack):
+
 ```bash
-make demo
+make demo                    # any OS with make (Windows, macOS, Linux)
+python demo/launch.py        # any OS with Python — no make needed
+```
+
+```powershell
+.\demo.cmd                   # Windows — no make, no Python knowledge needed
+```
+
+```bash
+./demo.sh                    # macOS / Linux — no make needed
 ```
 
 Builds and starts four Docker services:
@@ -23,21 +35,29 @@ Builds and starts four Docker services:
 | Grafana | http://localhost:3001 | Login: `admin` / `catops` |
 | Prometheus | http://localhost:9090 | Raw metrics |
 
-```bash
-make demo-down    # stop all services (also clears session logs)
-make demo-reset   # hard reset — remove volumes + images, rebuild from scratch
-```
+Stop or reset it the same way — `make demo-down` / `make demo-reset`, or
+`python demo/launch.py down` / `reset` (also `down`/`reset` on the `demo.cmd` /
+`demo.sh` wrappers).
 
 ### Requirements
 
-- Docker Desktop running
+- Docker Desktop installed and running
 - ~4 GB disk space (PyTorch base image)
 - Ports 3000, 3001, 8501, 9090 free
-- **Windows**: `make` is not available natively — run commands from WSL2 or Git Bash
+- Python 3 on PATH (used by the launcher; the project needs it anyway)
 
-> **Model checkpoint:** `models/best_model.pt` is not tracked in git. Download it before running `make demo`:
+> The launcher is cross-platform — it runs the same from Windows PowerShell/cmd
+> and macOS/Linux terminals, so no WSL2 or Git Bash is required.
+
+> **Model checkpoint:** `models/best_model.pt` is not tracked in git. **The demo
+> launcher downloads it automatically** on first run (from the GitHub release, with
+> checksum verification) — no manual step needed.
+>
+> To fetch it on its own (or if the automatic download fails):
 >
 > ```bash
+> make fetch-model               # or: python demo/launch.py fetch-model
+> # or manually:
 > curl -L -o models/best_model.pt \
 >   https://github.com/afonsocosta90/purr-duction-pipeline/releases/download/v1.0/best_model.pt
 > ```
