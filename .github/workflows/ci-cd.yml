@@ -25,7 +25,8 @@ jobs:
               - 'configs/**'
             docker:
               - 'docker/**'
-              - 'demo/Dockerfile.demo'
+              - 'demo/**'
+              - 'src/**'
               - 'pyproject.toml'
               - 'poetry.lock'
 

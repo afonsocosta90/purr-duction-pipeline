@@ -5,6 +5,7 @@
 # MLflow tracking (generated at training time, not a DVC artifact)
 mlruns/
 mlflow.db
+mlartifacts/
 
 # Virtual environment
 .venv/

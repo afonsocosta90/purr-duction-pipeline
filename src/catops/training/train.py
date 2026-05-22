@@ -19,6 +19,7 @@ import hydra
 from omegaconf import DictConfig
 import json
 
+from src.catops.common.mlflow_setup import configure_mlflow
 from src.catops.data.dataset import CatDataset
 from src.catops.evaluation.evaluate import evaluate_model  # NEW
 
@@ -73,26 +74,9 @@ def train(cfg: DictConfig) -> None:
 
     epochs = 1 if os.environ.get("CI") == "true" else cfg.training.epochs
 
-    # MLflow — use remote only when credentials are present, else local mlruns/
-    tracking_uri = os.environ.get(
-        "MLFLOW_TRACKING_URI",
-        "https://dagshub.com/afonsocosta90/purr-duction-pipeline.mlflow",
-    )
-    has_credentials = bool(
-        os.environ.get("MLFLOW_TRACKING_USERNAME")
-        and os.environ.get("MLFLOW_TRACKING_PASSWORD")
-    )
-    if not has_credentials and tracking_uri.startswith("http"):
-        tracking_uri = "mlruns"
-    mlflow.set_tracking_uri(tracking_uri)
-    try:
-        mlflow.set_experiment("am-i-a-cat")
-    except Exception as exc:
-        print(
-            f"⚠️  Remote MLflow unavailable ({exc.__class__.__name__}), falling back to local tracking"
-        )
-        mlflow.set_tracking_uri("mlruns")
-        mlflow.set_experiment("am-i-a-cat")
+    # MLflow — remote DagsHub when credentials are present, else a local
+    # sqlite registry (see src/catops/common/mlflow_setup.py).
+    configure_mlflow(pin_artifacts=True)
     with mlflow.start_run(run_name=f"resnet50-seed-{cfg.training.seed}"):
         mlflow.log_params(
             {
@@ -142,9 +126,30 @@ def train(cfg: DictConfig) -> None:
             val_metrics["accuracy"] >= cfg.training.promotion.min_accuracy
             and val_metrics["f1"] >= cfg.training.promotion.min_f1
         ):
-            mlflow.pytorch.log_model(model, "model")
+            model_info = mlflow.pytorch.log_model(model, name="model")
             print("🎉 MODEL PROMOTED TO STAGING – REAL thresholds met!")
             mlflow.set_tag("stage", "staging")
+
+            # Register the promoted model and move the @staging alias to it,
+            # so the serving layer can load models:/am-i-a-cat@staging.
+            # model_info.model_uri is the MLflow 3.x logged-model URI
+            # (models:/m-<id>) — the correct input for register_model.
+            # Wrapped defensively: a registry-less backend (e.g. DagsHub) must
+            # not fail the run — the disk checkpoint below still ships.
+            try:
+                from mlflow import MlflowClient
+
+                mv = mlflow.register_model(model_info.model_uri, "am-i-a-cat")
+                MlflowClient().set_registered_model_alias(
+                    "am-i-a-cat", "staging", mv.version
+                )
+                print(f"📦 Registered am-i-a-cat v{mv.version} with alias @staging")
+            except Exception as exc:
+                print(
+                    f"⚠️  Model registry unavailable "
+                    f"({exc.__class__.__name__}: {exc}); "
+                    "continuing with disk checkpoint only"
+                )
         else:
             print("⚠️  Model did NOT meet promotion thresholds.")
 

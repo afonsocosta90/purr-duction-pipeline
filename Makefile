@@ -1,5 +1,5 @@
 .PHONY: install shell test lint pipeline features train dvc-push \
-        serve api-test compute-baseline drift-report monitor \
+        serve api-test compute-baseline drift-report monitor fetch-model \
         demo demo-down demo-reset demo-cloud demo-logs
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -51,73 +51,30 @@ monitor: ## Start API + Prometheus + Grafana via docker-compose (Phase 8 stack)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 9 — Interactive Demo Stack
+#
+# All demo targets delegate to the cross-platform launcher demo/launch.py, so
+# they run identically from Windows PowerShell/cmd and macOS/Linux shells.
+# Each recipe is a single plain command — no POSIX-shell syntax — so `make`
+# works even when it executes recipes through Windows cmd.exe.
+# Override PYTHON if `python` is not on PATH (e.g. `make demo PYTHON=python3`).
 # ─────────────────────────────────────────────────────────────────────────────
 
-GHCR_API  := ghcr.io/afonsocosta90/purr-duction-pipeline:latest
-GHCR_DEMO := ghcr.io/afonsocosta90/purr-duction-pipeline-demo:latest
+PYTHON ?= python
 
-demo: ## Pull pre-built images from GHCR and start full demo (falls back to local build)
-	@echo ""
-	@echo "╔══════════════════════════════════════════════════════════════╗"
-	@echo "║          Am I a Cat? — MLOps Portfolio Demo                 ║"
-	@echo "╚══════════════════════════════════════════════════════════════╝"
-	@echo ""
-	@echo "  Clearing previous session logs…"
-	@rm -f monitoring/feedback_log.csv monitoring/inference_log.csv
-	@echo ""
-	@echo "  Step 1/2 — Fetching API image…"
-	@if docker pull $(GHCR_API) 2>/dev/null; then \
-		docker tag $(GHCR_API) catops-api:demo; \
-	else \
-		echo "  Pre-built image unavailable — building locally…"; \
-		docker compose -f demo/docker-compose.demo.yml build api; \
-	fi
-	@echo ""
-	@echo "  Step 2/2 — Fetching Streamlit image and starting services…"
-	@if docker pull $(GHCR_DEMO) 2>/dev/null; then \
-		docker tag $(GHCR_DEMO) catops-demo:latest; \
-	else \
-		echo "  Pre-built image unavailable — building locally…"; \
-		docker compose -f demo/docker-compose.demo.yml build streamlit; \
-	fi
-	@docker compose -f demo/docker-compose.demo.yml up -d
-	@echo ""
-	@echo "  ✅ Services are starting. Will be available at:"
-	@echo ""
-	@echo "     🔮 Streamlit UI    →  http://localhost:8501"
-	@echo "     🚀 FastAPI docs    →  http://localhost:3000/docs"
-	@echo "     📊 Grafana         →  http://localhost:3001  (admin / catops)"
-	@echo "     🔥 Prometheus      →  http://localhost:9090"
-	@echo ""
-	@echo "  Run 'make demo-logs' to follow all service logs."
-	@echo "  Run 'make demo-down' to stop when done."
-	@echo ""
+demo: ## Fetch the model, build/pull images, and start the full demo stack
+	$(PYTHON) demo/launch.py up
 
 demo-down: ## Stop the demo stack
-	docker compose -f demo/docker-compose.demo.yml down
-	@rm -f monitoring/feedback_log.csv monitoring/inference_log.csv
-	@echo "  Session logs cleared."
+	$(PYTHON) demo/launch.py down
 
-demo-reset: ## Hard reset — remove containers + volumes, then pull fresh images (or rebuild locally)
-	@echo "⚠️  This removes all Prometheus and Grafana data volumes."
-	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
-	docker compose -f demo/docker-compose.demo.yml down -v --remove-orphans
-	docker rmi catops-api:demo catops-demo:latest 2>/dev/null || true
-	@if docker pull $(GHCR_API) 2>/dev/null; then \
-		docker tag $(GHCR_API) catops-api:demo; \
-	else \
-		docker compose -f demo/docker-compose.demo.yml build api; \
-	fi
-	@if docker pull $(GHCR_DEMO) 2>/dev/null; then \
-		docker tag $(GHCR_DEMO) catops-demo:latest; \
-	else \
-		docker compose -f demo/docker-compose.demo.yml build streamlit; \
-	fi
-	docker compose -f demo/docker-compose.demo.yml up -d
-	@echo "✅ Demo stack reset and running."
+demo-reset: ## Hard reset — remove containers + volumes + images, then rebuild
+	$(PYTHON) demo/launch.py reset
 
 demo-logs: ## Follow logs from all demo services
-	docker compose -f demo/docker-compose.demo.yml logs -f
+	$(PYTHON) demo/launch.py logs
+
+fetch-model: ## Download the model checkpoint from the GitHub release if missing
+	$(PYTHON) demo/launch.py fetch-model
 
 demo-cloud: ## Deploy demo stack to a remote Docker host (set DOCKER_HOST=ssh://user@host)
 	@[ -n "$(DOCKER_HOST)" ] || \

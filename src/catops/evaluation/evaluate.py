@@ -5,7 +5,6 @@
 - Returns metrics dict for promotion logic + tracking
 """
 
-import os
 from pathlib import Path
 import json
 from typing import Dict
@@ -27,6 +26,7 @@ from sklearn.metrics import (
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
+from src.catops.common.mlflow_setup import configure_mlflow
 from src.catops.data.dataset import CatDataset
 
 
@@ -152,25 +152,7 @@ if __name__ == "__main__":
 
     @hydra.main(config_path="../../../configs", config_name="config", version_base=None)
     def _main(cfg: _DictConfig) -> None:
-        tracking_uri = os.environ.get(
-            "MLFLOW_TRACKING_URI",
-            "https://dagshub.com/afonsocosta90/purr-duction-pipeline.mlflow",
-        )
-        has_credentials = bool(
-            os.environ.get("MLFLOW_TRACKING_USERNAME")
-            and os.environ.get("MLFLOW_TRACKING_PASSWORD")
-        )
-        if not has_credentials and tracking_uri.startswith("http"):
-            tracking_uri = "mlruns"
-        mlflow.set_tracking_uri(tracking_uri)
-        try:
-            mlflow.set_experiment("am-i-a-cat")
-        except Exception as exc:
-            print(
-                f"⚠️  Remote MLflow unavailable ({exc.__class__.__name__}), falling back to local tracking"
-            )
-            mlflow.set_tracking_uri("mlruns")
-            mlflow.set_experiment("am-i-a-cat")
+        configure_mlflow(pin_artifacts=False)
 
         model_cfg = json.loads(Path("models/model_config.json").read_text())
         base = tv_models.resnet50(weights=None)
