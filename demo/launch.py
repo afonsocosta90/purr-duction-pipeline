@@ -37,9 +37,9 @@ COMPOSE_REL = "demo/docker-compose.demo.yml"
 MODEL_PATH = REPO_ROOT / "models" / "best_model.pt"
 MODEL_URL = (
     "https://github.com/afonsocosta90/purr-duction-pipeline"
-    "/releases/download/v1.0/best_model.pt"
+    "/releases/download/v1.1/best_model.pt"
 )
-MODEL_SHA256 = "270277f8ee0035b8d4ee1fcc74e4b178e2641b48a7078b3409c72c7724eadd51"
+MODEL_SHA256 = "793a0817c6d38e95b5eaaddb5bb5734b0a597296d5f469f6e9437d3abc46fa47"
 
 # The API reads features_config.json at startup to build its inference
 # transform. It is a `features` pipeline output and is not committed

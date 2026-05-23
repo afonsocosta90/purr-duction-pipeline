@@ -59,10 +59,10 @@ Stop or reset it the same way — `make demo-down` / `make demo-reset`, or
 > make fetch-model               # or: python demo/launch.py fetch-model
 > # or manually:
 > curl -L -o models/best_model.pt \
->   https://github.com/afonsocosta90/purr-duction-pipeline/releases/download/v1.0/best_model.pt
+>   https://github.com/afonsocosta90/purr-duction-pipeline/releases/download/v1.1/best_model.pt
 > ```
 >
-> SHA256: `270277f8ee0035b8d4ee1fcc74e4b178e2641b48a7078b3409c72c7724eadd51`
+> SHA256: `793a0817c6d38e95b5eaaddb5bb5734b0a597296d5f469f6e9437d3abc46fa47`
 >
 > Alternatively, run the full training pipeline from scratch: `make pipeline` (requires DVC data — see Development below).
 
