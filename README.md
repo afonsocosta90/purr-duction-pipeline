@@ -4,7 +4,7 @@
 
 ResNet50 transfer learning · DVC pipelines · MLflow experiment tracking · FastAPI serving · Evidently AI drift detection · Prometheus + Grafana observability · GitHub Actions CI/CD · Interactive Streamlit demo
 
-> 7,390 training images · >94% val accuracy · 9 phases · all complete ✅
+> 9,390 images · 94.9 % test accuracy · 66 ms p95 `/predict` latency · 9 phases · all complete ✅
 
 ---
 
@@ -112,72 +112,55 @@ Open **http://localhost:3001** (admin / catops) — the *CatOps* dashboard is pr
 
 ## Project KPIs
 
-*Numbers below are verified against the codebase — not aspirational targets.*
+*Every measured value below was captured on this repo with the scripts in
+[`scripts/`](scripts/) — re-run them to refresh after retraining or container
+changes.*
 
 ### At a glance
 
-| Metric              | Value                          |
-|---------------------|--------------------------------|
-| Dataset images      | 7,390 (Oxford-IIIT Pet)        |
-| Val accuracy gate   | ≥ 94 %                         |
-| DVC pipeline stages | 5                              |
-| API endpoints       | 5 (3 public + 2 internal)      |
-| Grafana panels      | 11                             |
-| Production code     | ~1,466 LOC across 13 modules   |
+| Metric                       | Value                                              |
+|------------------------------|----------------------------------------------------|
+| Test accuracy / F1 / AUC     | **94.9 % / 0.967 / 0.991** (n = 1,409)             |
+| `/predict` p95 latency       | **66 ms** (single-threaded, CPU, n = 200)          |
+| Cold-start to first /predict | **6.5 s** (container → `/health` 200 → first call) |
+| Dataset                      | 9,390 images, 70 / 15 / 15 stratified              |
 
-### Data & model
+### Model
 
-| Metric                   | Value                                            |
-|--------------------------|--------------------------------------------------|
-| Images                   | 7,390 — Oxford-IIIT Pet (cat vs. dog)            |
-| Classes                  | 2 (`cat`, `not_cat`)                             |
-| Train / val / test split | 70 / 15 / 15 (stratified, seed 42)               |
-| Input size               | 224 × 224, ImageNet normalisation                |
-| Architecture             | ResNet50 (`IMAGENET1K_V1`) + dropout 0.2         |
-| Promotion gate           | `val_accuracy ≥ 0.94` ∧ `val_f1 ≥ 0.93`          |
+| Metric                  | Value                                                       |
+|-------------------------|-------------------------------------------------------------|
+| Architecture            | ResNet50 (`IMAGENET1K_V1`) + dropout 0.2                    |
+| Checkpoint size         | 94.0 MB (`models/best_model.pt`)                            |
+| Val (acc / F1 / AUC)    | 0.9574 / 0.9720 / 0.9890  (n = 1,409)                       |
+| Test (acc / F1 / AUC)   | 0.9489 / 0.9667 / 0.9913  (n = 1,409)                       |
+| Promotion gate          | `val_acc ≥ 0.94` ∧ `val_F1 ≥ 0.93` — **passed at v1.1**     |
+| Majority-class baseline | 74 % test accuracy if you always predict `not_cat` — model is **+21 pp** above |
 
-### Pipeline & quality gates
+### Data
 
-| Metric                | Value                                                                              |
-|-----------------------|------------------------------------------------------------------------------------|
-| DVC stages            | 5 (ingest → validate → features → train → evaluate)                                |
-| Validation gates      | 4 pre-split + 1 stratification leak check                                          |
-| Hydra configs         | 4 (`config` / `data` / `model` / `training`)                                       |
-| Determinism           | fixed seed + cached stages — `dvc repro` is a no-op when inputs are unchanged      |
+| Metric        | Value                                                            |
+|---------------|------------------------------------------------------------------|
+| Total images  | 9,390 — Oxford-IIIT Pet (cat vs. dog)                            |
+| Class balance | 2,400 `cat` / 6,990 `not_cat` (26 % / 74 % — imbalanced)         |
+| Split         | train 6,572 · val 1,409 · test 1,409 (stratified, seed 42)       |
+| Input         | 224 × 224, ImageNet normalisation                                |
 
-### Serving
+### Serving (measured)
 
-| Metric                 | Value                                                                              |
-|------------------------|------------------------------------------------------------------------------------|
-| FastAPI endpoints      | 5 — 3 public (`/predict`, `/health`, `/metrics`) + 2 internal                      |
-| Accepted content types | 4 (`image/jpeg`, `image/png`, `image/webp`, `image/gif`)                           |
-| Upload guards          | 10 MB size limit + 4 MP decompression-bomb cap                                     |
-| Custom Prom metrics    | 3 (`catops_predictions_total`, `catops_prediction_confidence`, `catops_drift_score`) |
-| Auto-instrumented      | HTTP latency / request counters via `prometheus-fastapi-instrumentator`            |
-| Container hardening    | non-root user (uid 1001), uvicorn 2-worker                                         |
+| Metric              | Value                                                                                       |
+|---------------------|---------------------------------------------------------------------------------------------|
+| `/predict` latency  | p50 47.8 ms · **p95 66.1 ms** · p99 67.7 ms · mean 51.0 ms (n = 200, client-side, localhost CPU) |
+| Cold-start          | container → `/health` 200: **6.4 s** (model load) · first `/predict`: 54 ms                 |
 
-### Monitoring & drift
+### Pipeline & ops
 
-| Metric                | Value                                                                              |
-|-----------------------|------------------------------------------------------------------------------------|
-| Inference log columns | 10 (timestamp · MD5 hash · 3×RGB mean · 3×RGB std · label · confidence) — **no raw image is ever stored** (GDPR-safe) |
-| Drift detector        | Evidently AI `DataDriftPreset`, scheduled daily 08:00 UTC                          |
-| Drift thresholds      | drift score > 0.5 **or** rolling confidence < 0.80 (window 200, min 50 samples)    |
-| Dashboard             | 11-panel Grafana *CatOps* board (label distribution · confidence histogram · p50/p95/p99 latency) |
-| Alerting              | Slack webhook + uploaded `drift_report.html` artifact                              |
-
-### CI/CD & engineering
-
-| Metric                 | Value                                                                              |
-|------------------------|------------------------------------------------------------------------------------|
-| GH Actions workflows   | 2 (`ci-cd.yml` + scheduled `drift.yml`)                                            |
-| CI/CD jobs             | 4 (`changes` / `quality` / `pipeline` / `docker`)                                  |
-| Path-filter categories | 2 (`code` · `docker`) — `pipeline` / `docker` jobs only run on relevant changes    |
-| Code quality           | ruff + black + mypy + 3 DVC pre-commit hooks                                       |
-| Smoke tests            | 4 (structure · configs · `dvc.yaml` · processed splits)                            |
-| Demo stack             | 4 services + 3 Streamlit tabs + 4 cross-platform launchers (`make demo`, `demo.cmd`, `demo.sh`, `python demo/launch.py`) |
-| Production code        | ~1,466 LOC across 13 modules in `src/catops/`                                      |
-| Repo activity          | 83 commits on `main`, 9 phases delivered                                           |
+| Metric              | Value                                                                                                |
+|---------------------|------------------------------------------------------------------------------------------------------|
+| DVC stages          | `ingest → validate → features → train → evaluate` (cached)                                           |
+| Data quality gates  | class presence · class balance ≥ 20 % · file ≥ 1 KB · path dedup · post-split stratification leak check |
+| Determinism         | seed 42 · cached stages — `dvc repro` is a no-op on unchanged inputs                                 |
+| Drift detection     | Evidently AI `DataDriftPreset` · daily 08:00 UTC · trigger when drift > 0.5 **or** rolling confidence < 0.80 (window 200, min 50 samples) |
+| Inference logging   | timestamp · MD5 hash · 6 pixel stats · label · confidence — **raw image never stored** (GDPR-safe)   |
 
 ---
 

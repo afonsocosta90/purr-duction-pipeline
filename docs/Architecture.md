@@ -115,7 +115,7 @@ sequenceDiagram
     Ingest->>FS: scan data/raw/images/ for *.jpg / *.jpeg / *.png
     Ingest->>FS: img.name[0].isupper() → copy to data/processed/cat/
     Ingest->>FS: img.name[0].islower() → copy to data/processed/not_cat/
-    Ingest-->>DVC: stage complete (7,390 images)
+    Ingest-->>DVC: stage complete (9,390 images)
     DVC->>Validate: run stage: validate
     Validate->>FS: scan data/processed/ → build metadata.csv
     Validate->>Validate: gate 1 — both classes present?

@@ -4,8 +4,8 @@
 
 ## Current Dataset Status
 - **Cat**: 2,400 images
-- **Not Cat**: 4,990 images
-- **Total**: 7,390 images
+- **Not Cat**: 6,990 images
+- **Total**: 9,390 images (imbalanced: 26 % / 74 %)
 - Last validated via `validate` stage (metadata.csv automatically generated)
 
 ---
