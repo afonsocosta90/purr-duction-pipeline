@@ -80,7 +80,7 @@ Stop or reset it the same way — `make demo-down` / `make demo-reset`, or
 
 Sample images included: `cat_sample_1-3.jpg` and `not_cat_sample_1-2.jpg`
 
-### Tab 2 — Pipeline Control (Closed-Loop Retraining)
+### Tab 2 — Pipeline Control (Button-Triggered Retraining)
 
 **Step 1 — Inject Synthetic Drift**
 
@@ -191,6 +191,8 @@ changes.*
 │                    dvc repro streaming · before/after metrics    │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+In CI (with `MLFLOW_TRACKING_URI` set), the API resolves `models:/am-i-a-cat@staging` from the MLflow registry; the local demo falls back to the on-disk `models/best_model.pt` checkpoint (`src/catops/serving/model_utils.py:load_serving_model`).
 
 Full architecture diagrams and sequence flows: [docs/Architecture.md](docs/Architecture.md)
 
