@@ -34,10 +34,14 @@ N_RUN = 200
 def _post_predict(img: bytes) -> tuple[int, float]:
     boundary = "----catopsboundary"
     body = (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="file"; filename="cat.jpg"\r\n'
-        f"Content-Type: image/jpeg\r\n\r\n"
-    ).encode() + img + f"\r\n--{boundary}--\r\n".encode()
+        (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; filename="cat.jpg"\r\n'
+            f"Content-Type: image/jpeg\r\n\r\n"
+        ).encode()
+        + img
+        + f"\r\n--{boundary}--\r\n".encode()
+    )
     req = urllib.request.Request(
         PREDICT_URL,
         data=body,
@@ -55,7 +59,9 @@ def _post_predict(img: bytes) -> tuple[int, float]:
 def _pct(sorted_values: list[float], p: float) -> float:
     if not sorted_values:
         return float("nan")
-    idx = min(len(sorted_values) - 1, int(round((p / 100.0) * (len(sorted_values) - 1))))
+    idx = min(
+        len(sorted_values) - 1, int(round((p / 100.0) * (len(sorted_values) - 1)))
+    )
     return sorted_values[idx]
 
 
@@ -89,7 +95,10 @@ def _server_percentiles_from_prom() -> dict[str, float] | None:
         except (IndexError, ValueError):
             continue
     for line in text.splitlines():
-        if line.startswith("http_request_duration_seconds_count{") and 'handler="/predict"' in line:
+        if (
+            line.startswith("http_request_duration_seconds_count{")
+            and 'handler="/predict"' in line
+        ):
             try:
                 total = float(line.rsplit(" ", 1)[1])
             except (IndexError, ValueError):

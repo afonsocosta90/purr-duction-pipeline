@@ -45,10 +45,14 @@ def _health_ok() -> bool:
 def _post_predict() -> int:
     boundary = "----catopsboundary"
     body = (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="file"; filename="cat.jpg"\r\n'
-        f"Content-Type: image/jpeg\r\n\r\n"
-    ).encode() + SAMPLE.read_bytes() + f"\r\n--{boundary}--\r\n".encode()
+        (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; filename="cat.jpg"\r\n'
+            f"Content-Type: image/jpeg\r\n\r\n"
+        ).encode()
+        + SAMPLE.read_bytes()
+        + f"\r\n--{boundary}--\r\n".encode()
+    )
     req = urllib.request.Request(
         PREDICT_URL,
         data=body,

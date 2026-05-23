@@ -47,9 +47,7 @@ def build_model() -> torch.nn.Module:
     device = torch.device(
         "cuda"
         if torch.cuda.is_available()
-        else "mps"
-        if torch.backends.mps.is_available()
-        else "cpu"
+        else "mps" if torch.backends.mps.is_available() else "cpu"
     )
     model.load_state_dict(
         torch.load(MODEL_PATH, map_location=device, weights_only=True)
@@ -107,7 +105,9 @@ def main() -> None:
     model = build_model()
     transform = build_transform()
     print(f"Device: {next(model.parameters()).device}")
-    print(f"{'split':>5}  {'n':>5}  {'acc':>7}  {'f1':>7}  {'prec':>7}  {'rec':>7}  {'auc':>7}")
+    print(
+        f"{'split':>5}  {'n':>5}  {'acc':>7}  {'f1':>7}  {'prec':>7}  {'rec':>7}  {'auc':>7}"
+    )
     for split in ("val", "test"):
         m = evaluate(model, transform, split)
         print(
