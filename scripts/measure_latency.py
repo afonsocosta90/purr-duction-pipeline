@@ -23,7 +23,6 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Iterable
 
 PREDICT_URL = "http://localhost:3000/predict"
 METRICS_URL = "http://localhost:3000/metrics"
