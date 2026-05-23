@@ -594,27 +594,33 @@ def _inference_stats() -> dict:
 
 
 def _load_mlflow_metrics() -> dict | None:
-    mlruns = PROJECT_ROOT / "tracking"
-    if not mlruns.exists():
+    # The training stage writes runs to the SQLite backend at <repo>/mlflow.db
+    # (see src/catops/common/mlflow_setup.py). Earlier iterations of this demo
+    # globbed a file-store layout under tracking/ — that path no longer exists,
+    # so the before/after panel silently rendered dashes.
+    db = PROJECT_ROOT / "mlflow.db"
+    if not db.exists():
         return None
     try:
-        best: dict | None = None
-        best_ts: float = 0.0
-        for mf in mlruns.glob("*/*/metrics/val_accuracy"):
-            lines = mf.read_text().strip().splitlines()
-            if not lines:
-                continue
-            ts, _val, _ = lines[-1].split()
-            if float(ts) > best_ts:
-                best_ts = float(ts)
-                run_dir = mf.parent.parent
-                metrics: dict = {}
-                for metric_file in (run_dir / "metrics").iterdir():
-                    mlines = metric_file.read_text().strip().splitlines()
-                    if mlines:
-                        metrics[metric_file.name] = float(mlines[-1].split()[1])
-                best = metrics
-        return best
+        from mlflow import MlflowClient
+
+        client = MlflowClient(tracking_uri=f"sqlite:///{db.as_posix()}")
+        exp = client.get_experiment_by_name("am-i-a-cat")
+        if exp is None:
+            return None
+        # The training stage and the evaluation stage each create their own run
+        # (named "resnet50-seed-*" and "evaluate-test" respectively). The
+        # before/after panel below reads val_* metrics, which only live on the
+        # training run — so filter to that one and skip the eval run.
+        runs = client.search_runs(
+            experiment_ids=[exp.experiment_id],
+            filter_string="attributes.run_name LIKE 'resnet50%'",
+            order_by=["attributes.start_time DESC"],
+            max_results=1,
+        )
+        if not runs:
+            return None
+        return dict(runs[0].data.metrics)
     except Exception:
         return None
 
